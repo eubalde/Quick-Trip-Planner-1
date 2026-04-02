@@ -5,6 +5,14 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
+import {
+  DMSerifDisplay_400Regular,
+  DMSerifDisplay_400Italic,
+} from "@expo-google-fonts/dm-serif-display";
+import {
+  SpaceMono_400Regular,
+  SpaceMono_700Bold,
+} from "@expo-google-fonts/space-mono";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -30,18 +38,11 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="auth"
-        options={{
-          headerShown: false,
-          presentation: "modal",
-        }}
+        options={{ headerShown: false, presentation: "modal" }}
       />
       <Stack.Screen
         name="itinerary"
-        options={{
-          headerShown: false,
-          presentation: "card",
-          animation: "slide_from_right",
-        }}
+        options={{ headerShown: false, presentation: "card", animation: "slide_from_right" }}
       />
     </Stack>
   );
@@ -53,6 +54,10 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    DMSerifDisplay_400Regular,
+    DMSerifDisplay_400Italic,
+    SpaceMono_400Regular,
+    SpaceMono_700Bold,
   });
 
   useEffect(() => {

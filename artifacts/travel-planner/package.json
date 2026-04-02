@@ -54,5 +54,9 @@
     "typescript": "~5.9.2",
     "zod": "catalog:",
     "zod-validation-error": "^3.4.0"
+  },
+  "dependencies": {
+    "@expo-google-fonts/dm-serif-display": "^0.4.2",
+    "@expo-google-fonts/space-mono": "^0.4.2"
   }
 }

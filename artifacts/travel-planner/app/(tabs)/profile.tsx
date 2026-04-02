@@ -25,7 +25,7 @@ export default function ProfileScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const handleLogout = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+    Alert.alert("End Session", "Sign out of Voyager?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Sign Out",
@@ -38,97 +38,81 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const styles = createStyles(colors);
+  const s = makeStyles(colors);
 
   if (!user) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Profile</Text>
+      <View style={[s.root, { backgroundColor: colors.background }]}>
+        <View style={[s.header, { paddingTop: topPad + 16, borderBottomColor: colors.border }]}>
+          <Text style={s.title}>Profile.</Text>
         </View>
-        <View style={styles.guestState}>
-          <View style={[styles.avatarCircle, { backgroundColor: colors.secondary }]}>
+        <View style={s.guestState}>
+          <View style={[s.avatarBox, { borderColor: colors.border, backgroundColor: colors.card }]}>
             <Feather name="user" size={40} color={colors.mutedForeground} />
           </View>
-          <Text style={[styles.guestTitle, { color: colors.foreground }]}>Not signed in</Text>
-          <Text style={[styles.guestText, { color: colors.mutedForeground }]}>
-            Sign in to save itineraries and access them anytime
+          <Text style={[s.guestHeadline, { color: colors.foreground }]}>Anonymous Explorer</Text>
+          <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 9, textAlign: "center" }]}>
+            // AUTH_STATE: ANONYMOUS_SESSION
           </Text>
           <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+            style={[s.primaryBtn, { backgroundColor: colors.primary, borderColor: colors.border, shadowColor: colors.border }]}
             onPress={() => router.push("/auth")}
           >
-            <Text style={styles.primaryBtnText}>Sign In</Text>
+            <Text style={s.primaryBtnText}>SIGN IN</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.secondaryBtn, { borderColor: colors.border }]}
+            style={[s.secondaryBtn, { borderColor: colors.border, shadowColor: colors.border }]}
             onPress={() => router.push("/auth?mode=register")}
           >
-            <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Create Account</Text>
+            <Text style={[s.secondaryBtnText, { color: colors.foreground }]}>CREATE ACCOUNT</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  const initials = user.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  const initials = user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: Platform.OS === "web" ? 100 : 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Profile</Text>
+    <View style={[s.root, { backgroundColor: colors.background }]}>
+      <ScrollView contentContainerStyle={{ paddingBottom: Platform.OS === "web" ? 100 : 100 }} showsVerticalScrollIndicator={false}>
+        <View style={[s.header, { paddingTop: topPad + 16, borderBottomColor: colors.border }]}>
+          <Text style={s.title}>Profile.</Text>
         </View>
 
-        <View style={styles.profileSection}>
-          <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-            <Text style={styles.avatarText}>{initials}</Text>
+        <View style={s.profileHero}>
+          <View style={[s.avatarBox, { backgroundColor: colors.primary, borderColor: colors.border }]}>
+            <Text style={s.avatarText}>{initials}</Text>
           </View>
-          <Text style={[styles.userName, { color: colors.foreground }]}>{user.name}</Text>
-          <Text style={[styles.userEmail, { color: colors.mutedForeground }]}>{user.email}</Text>
-          <Text style={[styles.memberSince, { color: colors.mutedForeground }]}>
-            Member since {new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+          <Text style={[s.sysLine, { color: colors.primary }]}>// SESSION_ACTIVE: VERIFIED</Text>
+          <Text style={[s.heroName, { color: colors.foreground }]}>{user.name}.</Text>
+          <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 10 }]}>{user.email}</Text>
+          <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 9, marginTop: 4 }]}>
+            EXPLORER SINCE {new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase()}
           </Text>
         </View>
 
-        <View style={styles.settingsSection}>
-          <View style={[styles.settingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.settingRow, { borderBottomColor: colors.border, borderBottomWidth: 1 }]}>
-              <View style={[styles.settingIcon, { backgroundColor: colors.accent }]}>
-                <Feather name="mail" size={16} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.settingLabel, { color: colors.mutedForeground }]}>Email</Text>
-                <Text style={[styles.settingValue, { color: colors.foreground }]}>{user.email}</Text>
-              </View>
+        <View style={{ paddingHorizontal: 20 }}>
+          <View style={[s.infoCard, { borderColor: colors.border, shadowColor: colors.border }]}>
+            <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 9, marginBottom: 12 }]}>
+              // ACCOUNT_DATA
+            </Text>
+            <View style={[s.infoRow, { borderBottomColor: colors.border }]}>
+              <Text style={[s.infoLabel, { color: colors.mutedForeground }]}>EMAIL</Text>
+              <Text style={[s.infoVal, { color: colors.foreground }]}>{user.email}</Text>
             </View>
-            <View style={styles.settingRow}>
-              <View style={[styles.settingIcon, { backgroundColor: colors.accent }]}>
-                <Feather name="user" size={16} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.settingLabel, { color: colors.mutedForeground }]}>Name</Text>
-                <Text style={[styles.settingValue, { color: colors.foreground }]}>{user.name}</Text>
-              </View>
+            <View style={s.infoRow}>
+              <Text style={[s.infoLabel, { color: colors.mutedForeground }]}>NAME</Text>
+              <Text style={[s.infoVal, { color: colors.foreground }]}>{user.name}</Text>
             </View>
           </View>
-        </View>
 
-        <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
           <TouchableOpacity
-            style={[styles.logoutBtn, { borderColor: colors.destructive }]}
+            style={[s.logoutBtn, { borderColor: colors.primary, shadowColor: colors.border }]}
             onPress={handleLogout}
           >
-            <Feather name="log-out" size={16} color={colors.destructive} style={{ marginRight: 8 }} />
-            <Text style={[styles.logoutText, { color: colors.destructive }]}>Sign Out</Text>
+            <Feather name="log-out" size={14} color={colors.primary} style={{ marginRight: 8 }} />
+            <Text style={[s.logoutText, { color: colors.primary }]}>END SESSION</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -136,75 +120,83 @@ export default function ProfileScreen() {
   );
 }
 
-function createStyles(colors: ReturnType<typeof useColors>) {
+function makeStyles(colors: ReturnType<typeof useColors>) {
   return StyleSheet.create({
-    container: { flex: 1 },
+    root: { flex: 1 },
     header: {
       paddingHorizontal: 20,
-      paddingBottom: 8,
+      paddingBottom: 16,
+      borderBottomWidth: 2,
+      marginBottom: 0,
     },
-    title: { fontSize: 26, fontFamily: "Inter_700Bold" },
-    profileSection: {
-      alignItems: "center",
-      paddingVertical: 32,
-      paddingHorizontal: 20,
-    },
-    avatarCircle: {
+    title: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 36, color: "#451A03" },
+    profileHero: { alignItems: "center", paddingVertical: 32, paddingHorizontal: 20 },
+    avatarBox: {
       width: 80,
       height: 80,
-      borderRadius: 40,
+      borderWidth: 2,
+      borderRadius: 4,
       alignItems: "center",
       justifyContent: "center",
       marginBottom: 16,
     },
-    avatarText: { color: "#fff", fontSize: 28, fontFamily: "Inter_700Bold" },
-    userName: { fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 4 },
-    userEmail: { fontSize: 15, fontFamily: "Inter_400Regular", marginBottom: 4 },
-    memberSince: { fontSize: 13, fontFamily: "Inter_400Regular" },
-    settingsSection: { paddingHorizontal: 20, marginBottom: 16 },
-    settingCard: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
-    settingRow: {
-      flexDirection: "row",
-      alignItems: "center",
+    avatarText: { fontFamily: "DMSerifDisplay_400Regular", fontSize: 32, color: "#fff" },
+    sysLine: { fontFamily: "SpaceMono_400Regular", fontSize: 9, marginBottom: 8 },
+    heroName: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 32, marginBottom: 4 },
+    mono: { fontFamily: "SpaceMono_400Regular" },
+    infoCard: {
+      borderWidth: 2,
+      borderRadius: 4,
       padding: 16,
-      gap: 12,
+      backgroundColor: "#FFFBEB",
+      marginBottom: 16,
+      shadowOffset: { width: 4, height: 4 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 4,
     },
-    settingIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    settingLabel: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 2 },
-    settingValue: { fontSize: 15, fontFamily: "Inter_500Medium" },
-    guestState: { alignItems: "center", paddingHorizontal: 40, paddingTop: 40 },
-    guestTitle: { fontSize: 22, fontFamily: "Inter_700Bold", marginTop: 16, marginBottom: 8 },
-    guestText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20, marginBottom: 32 },
-    primaryBtn: {
-      width: "100%",
-      paddingVertical: 14,
-      borderRadius: 12,
-      alignItems: "center",
-      marginBottom: 12,
-    },
-    primaryBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
-    secondaryBtn: {
-      width: "100%",
-      paddingVertical: 14,
-      borderRadius: 12,
-      borderWidth: 1,
-      alignItems: "center",
-    },
-    secondaryBtnText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+    infoRow: { paddingVertical: 12, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    infoLabel: { fontFamily: "SpaceMono_700Bold", fontSize: 9, letterSpacing: 1 },
+    infoVal: { fontFamily: "Inter_500Medium", fontSize: 14 },
     logoutBtn: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
       paddingVertical: 14,
-      borderRadius: 12,
-      borderWidth: 1,
+      borderWidth: 2,
+      borderRadius: 4,
+      shadowOffset: { width: 3, height: 3 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 3,
     },
-    logoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+    logoutText: { fontFamily: "SpaceMono_700Bold", fontSize: 11, letterSpacing: 2 },
+    guestState: { flex: 1, alignItems: "center", paddingHorizontal: 40, paddingTop: 40, gap: 12 },
+    guestHeadline: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 24 },
+    primaryBtn: {
+      width: "100%",
+      paddingVertical: 16,
+      alignItems: "center",
+      borderWidth: 2,
+      borderRadius: 4,
+      shadowOffset: { width: 4, height: 4 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 4,
+      marginTop: 8,
+    },
+    primaryBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 12, color: "#fff", letterSpacing: 2 },
+    secondaryBtn: {
+      width: "100%",
+      paddingVertical: 16,
+      alignItems: "center",
+      borderWidth: 2,
+      borderRadius: 4,
+      shadowOffset: { width: 4, height: 4 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 4,
+    },
+    secondaryBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 12, letterSpacing: 2 },
   });
 }

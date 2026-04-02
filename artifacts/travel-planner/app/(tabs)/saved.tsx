@@ -50,21 +50,14 @@ export default function SavedScreen() {
       const res = await fetch(`${apiBase}/api/itinerary`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setItineraries(data.reverse());
-      }
+      if (res.ok) setItineraries((await res.json()).reverse());
     } catch {
     } finally {
       setIsLoading(false);
     }
   }, [user, token]);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchItineraries();
-    }, [fetchItineraries])
-  );
+  useFocusEffect(useCallback(() => { fetchItineraries(); }, [fetchItineraries]));
 
   const handleOpen = (item: SavedItinerary) => {
     Haptics.selectionAsync();
@@ -73,10 +66,10 @@ export default function SavedScreen() {
   };
 
   const handleDelete = (id: string, city: string) => {
-    Alert.alert("Delete Itinerary", `Remove your trip to ${city}?`, [
+    Alert.alert("Discard Postcard", `Remove your ${city} itinerary?`, [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Delete",
+        text: "Discard",
         style: "destructive",
         onPress: async () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -97,25 +90,25 @@ export default function SavedScreen() {
     ]);
   };
 
-  const styles = createStyles(colors);
+  const s = makeStyles(colors);
 
   if (!user) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Saved Trips</Text>
+      <View style={[s.root, { backgroundColor: colors.background }]}>
+        <View style={[s.header, { paddingTop: topPad + 16, borderBottomColor: colors.border }]}>
+          <Text style={s.title}>Saved Trips</Text>
         </View>
-        <View style={styles.emptyState}>
-          <Feather name="lock" size={48} color={colors.border} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in to save trips</Text>
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            Create an account to save and revisit your itineraries
+        <View style={s.guestState}>
+          <Feather name="lock" size={36} color={colors.mutedForeground} />
+          <Text style={[s.emptyTitle, { color: colors.foreground }]}>Sign in to view saved trips</Text>
+          <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 10, textAlign: "center", marginBottom: 20 }]}>
+            // AUTH_REQUIRED: PERSISTENCE_DISABLED
           </Text>
           <TouchableOpacity
-            style={[styles.authBtn, { backgroundColor: colors.primary }]}
+            style={[s.authBtn, { backgroundColor: colors.primary, borderColor: colors.border, shadowColor: colors.border }]}
             onPress={() => router.push("/auth")}
           >
-            <Text style={styles.authBtnText}>Sign In</Text>
+            <Text style={s.authBtnText}>SIGN IN</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -123,83 +116,80 @@ export default function SavedScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Saved Trips</Text>
+    <View style={[s.root, { backgroundColor: colors.background }]}>
+      <View style={[s.header, { paddingTop: topPad + 16, borderBottomColor: colors.border }]}>
+        <Text style={s.title}>Saved.</Text>
         {isLoading && <ActivityIndicator size="small" color={colors.primary} />}
       </View>
 
       <FlatList
         data={itineraries}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.list,
-          { paddingBottom: Platform.OS === "web" ? 100 : 100 },
-        ]}
+        contentContainerStyle={[s.list, { paddingBottom: Platform.OS === "web" ? 100 : 100 }]}
         showsVerticalScrollIndicator={false}
         scrollEnabled={itineraries.length > 0}
         onRefresh={fetchItineraries}
         refreshing={isLoading}
         ListEmptyComponent={
           !isLoading ? (
-            <View style={styles.emptyState}>
-              <Feather name="bookmark" size={48} color={colors.border} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No saved trips yet</Text>
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                Generate a trip and save it to see it here
+            <View style={s.guestState}>
+              <Feather name="inbox" size={36} color={colors.mutedForeground} />
+              <Text style={[s.emptyTitle, { color: colors.foreground }]}>No saved trips yet</Text>
+              <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 9, textAlign: "center" }]}>
+                // COLLECTION_EMPTY: GENERATE_FIRST
               </Text>
             </View>
           ) : null
         }
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[s.card, { borderColor: colors.border, shadowColor: colors.border }]}
             onPress={() => handleOpen(item)}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            <View style={styles.cardHeader}>
-              <View style={[styles.cityBadge, { backgroundColor: colors.accent }]}>
-                <Feather name="map-pin" size={12} color={colors.primary} style={{ marginRight: 4 }} />
-                <Text style={[styles.cityBadgeText, { color: colors.primary }]}>{item.city}</Text>
+            {/* Stamp */}
+            <View style={[s.cardStamp, { backgroundColor: colors.primary, borderColor: colors.border }]}>
+              <Text style={s.stampText}>{item.city.slice(0, 3).toUpperCase()}</Text>
+              <Text style={s.stampYear}>{new Date(item.createdAt).getFullYear()}</Text>
+            </View>
+
+            <Text style={[s.mono, { color: colors.primary, fontSize: 9, marginBottom: 4 }]}>
+              // DESTINATION_LOG
+            </Text>
+            <Text style={[s.cardCity, { color: colors.foreground }]}>{item.city}.</Text>
+
+            <View style={s.cardBadges}>
+              <View style={[s.pill, { borderColor: colors.border, backgroundColor: colors.accent }]}>
+                <Text style={[s.pillText, { color: colors.foreground }]}>
+                  {item.tripDays} {item.tripDays === 1 ? "DAY" : "DAYS"}
+                </Text>
+              </View>
+              <View style={[s.pill, { borderColor: colors.border, backgroundColor: "#FFFBEB" }]}>
+                <Text style={[s.pillText, { color: colors.foreground }]}>{item.pace.toUpperCase()}</Text>
               </View>
               {item.isOptimized && (
-                <View style={[styles.optimizedBadge, { backgroundColor: "#d1fae5" }]}>
-                  <Text style={[styles.optimizedText, { color: "#065f46" }]}>Optimized</Text>
+                <View style={[s.pill, { borderColor: colors.border, backgroundColor: colors.teal }]}>
+                  <Text style={[s.pillText, { color: "#fff" }]}>OPTIMISED</Text>
                 </View>
               )}
             </View>
-            <Text style={[styles.cardCity, { color: colors.foreground }]}>{item.city}</Text>
-            <View style={styles.cardMeta}>
-              <View style={styles.metaItem}>
-                <Feather name="calendar" size={13} color={colors.mutedForeground} />
-                <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                  {item.tripDays} {item.tripDays === 1 ? "day" : "days"}
-                </Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Feather name="zap" size={13} color={colors.mutedForeground} />
-                <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                  {item.pace}
-                </Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Feather name="clock" size={13} color={colors.mutedForeground} />
-                <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                  {new Date(item.createdAt).toLocaleDateString()}
-                </Text>
-              </View>
+
+            <View style={[s.cardFooter, { borderTopColor: colors.border }]}>
+              <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 9 }]}>
+                {new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase()}
+              </Text>
+              <TouchableOpacity
+                onPress={() => handleDelete(item.id, item.city)}
+                disabled={deletingId === item.id}
+                style={s.deleteBtn}
+              >
+                {deletingId === item.id ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Feather name="trash-2" size={14} color={colors.primary} />
+                )}
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.deleteBtn}
-              onPress={() => handleDelete(item.id, item.city)}
-              disabled={deletingId === item.id}
-            >
-              {deletingId === item.id ? (
-                <ActivityIndicator size="small" color={colors.destructive} />
-              ) : (
-                <Feather name="trash-2" size={16} color={colors.destructive} />
-              )}
-            </TouchableOpacity>
           </TouchableOpacity>
         )}
       />
@@ -207,53 +197,64 @@ export default function SavedScreen() {
   );
 }
 
-function createStyles(colors: ReturnType<typeof useColors>) {
+function makeStyles(colors: ReturnType<typeof useColors>) {
   return StyleSheet.create({
-    container: { flex: 1 },
+    root: { flex: 1 },
     header: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: 20,
       paddingBottom: 16,
+      borderBottomWidth: 2,
+      marginBottom: 4,
     },
-    title: { fontSize: 26, fontFamily: "Inter_700Bold" },
-    list: { paddingHorizontal: 20, paddingTop: 4 },
+    title: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 36, color: "#451A03" },
+    list: { paddingHorizontal: 20, paddingTop: 16 },
     card: {
-      borderRadius: 16,
-      borderWidth: 1,
+      borderWidth: 2,
+      borderRadius: 4,
+      backgroundColor: "#FFFBEB",
       padding: 16,
-      marginBottom: 12,
+      marginBottom: 14,
+      shadowOffset: { width: 4, height: 4 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 4,
     },
-    cardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
-    cityBadge: {
-      flexDirection: "row",
+    cardStamp: {
+      position: "absolute",
+      top: -8,
+      right: 14,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      borderWidth: 2,
       alignItems: "center",
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 20,
+      justifyContent: "center",
+      transform: [{ rotate: "12deg" }],
     },
-    cityBadgeText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-    optimizedBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 20,
-    },
-    optimizedText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-    cardCity: { fontSize: 20, fontFamily: "Inter_700Bold", marginBottom: 8 },
-    cardMeta: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-    metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-    metaText: { fontSize: 13, fontFamily: "Inter_400Regular" },
-    deleteBtn: { position: "absolute", top: 16, right: 16, padding: 4 },
-    emptyState: { alignItems: "center", justifyContent: "center", paddingVertical: 80, paddingHorizontal: 40 },
-    emptyTitle: { fontSize: 20, fontFamily: "Inter_600SemiBold", marginTop: 16, marginBottom: 8, textAlign: "center" },
-    emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+    stampText: { fontFamily: "SpaceMono_700Bold", fontSize: 10, color: "#fff" },
+    stampYear: { fontFamily: "SpaceMono_400Regular", fontSize: 7, color: "rgba(255,255,255,0.8)" },
+    cardCity: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 28, marginBottom: 10 },
+    cardBadges: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 },
+    pill: { borderWidth: 2, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+    pillText: { fontFamily: "SpaceMono_700Bold", fontSize: 9 },
+    cardFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 2, paddingTop: 10 },
+    deleteBtn: { padding: 4 },
+    guestState: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 80, paddingHorizontal: 40, gap: 12 },
+    emptyTitle: { fontFamily: "DMSerifDisplay_400Regular", fontSize: 22, textAlign: "center" },
+    mono: { fontFamily: "SpaceMono_400Regular" },
     authBtn: {
-      marginTop: 24,
-      paddingHorizontal: 32,
+      paddingHorizontal: 28,
       paddingVertical: 14,
-      borderRadius: 12,
+      borderWidth: 2,
+      borderRadius: 4,
+      shadowOffset: { width: 4, height: 4 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 4,
     },
-    authBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+    authBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 12, color: "#fff", letterSpacing: 2 },
   });
 }
