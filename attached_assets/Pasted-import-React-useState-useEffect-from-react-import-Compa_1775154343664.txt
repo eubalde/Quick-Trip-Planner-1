@@ -1,0 +1,218 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Compass, Map, Navigation, Clock, Trash2, GripVertical, 
+  Info, CheckCircle, ChevronRight, Zap, Filter, Save,
+  AlertTriangle, RefreshCcw, Layers
+} from 'lucide-react';
+
+/**
+ * WAYFINDER BRAND KIT - THEME CONSTANTS
+ * Primary: Forest Carbon (#2D3748)
+ * Action: Acid Lime (#D4FF00)
+ * Surface: Off-White (#F7FAFC)
+ * Detail: Slate Blue (#4A5568)
+ */
+
+const WayfinderBrandKit = () => {
+  const [genProgress, setGenProgress] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Simulate the P95 20s Latency Generation
+  const startGeneration = () => {
+    setIsGenerating(true);
+    setGenProgress(0);
+    const interval = setInterval(() => {
+      setGenProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsGenerating(false);
+          return 100;
+        }
+        return prev + 5;
+      });
+    }, 1000); // 20 seconds total (5% per sec)
+  };
+
+  return (
+    <div className="min-h-screen bg-[#EDF2F7] font-['Public_Sans',_sans-serif] text-[#2D3748] p-4 md:p-8">
+      {/* --- HEADER / NAVIGATION --- */}
+      <header className="max-w-6xl mx-auto mb-12 flex justify-between items-center bg-[#2D3748] text-white p-4 rounded-xl shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="bg-[#D4FF00] p-2 rounded-lg text-[#2D3748]">
+            <Compass size={24} strokeWidth={1.5} />
+          </div>
+          <div>
+            <h1 className="text-xl font-black uppercase tracking-tight">Trailhead</h1>
+            <p className="text-[10px] uppercase tracking-[0.2em] opacity-60">Expedition Logic</p>
+          </div>
+        </div>
+        <nav className="hidden md:flex gap-6 text-xs font-bold uppercase tracking-wider">
+          <a href="#" className="text-[#D4FF00]">Planner</a>
+          <a href="#" className="hover:text-[#D4FF00] transition-colors">Saved Trips</a>
+          <a href="#" className="hover:text-[#D4FF00] transition-colors">Settings</a>
+        </nav>
+        <button className="bg-[#4A5568] px-4 py-2 rounded-lg text-xs font-bold">JD</button>
+      </header>
+
+      <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* --- LEFT COLUMN: SYSTEM STATUS & INPUT --- */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Brand Identity Card */}
+          <section className="bg-[#F7FAFC] border-2 border-[#2D3748] rounded-2xl p-6 shadow-[4px_4px_0px_0px_rgba(45,55,72,1)]">
+            <h2 className="text-[#2D3748] font-black uppercase mb-4 flex items-center gap-2">
+              <Layers size={18} strokeWidth={1.5} /> System Config
+            </h2>
+            <div className="space-y-4">
+              <div className="flex justify-between items-end border-b border-gray-200 pb-2">
+                <span className="text-[10px] uppercase font-bold text-[#4A5568]">Model Version</span>
+                <span className="text-xs font-mono">v2.4-deterministic</span>
+              </div>
+              <div className="flex justify-between items-end border-b border-gray-200 pb-2">
+                <span className="text-[10px] uppercase font-bold text-[#4A5568]">Target Efficiency</span>
+                <span className="text-xs font-mono">≤ 1.3 Ratio</span>
+              </div>
+              <div className="flex justify-between items-end border-b border-gray-200 pb-2">
+                <span className="text-[10px] uppercase font-bold text-[#4A5568]">Pace Constraint</span>
+                <span className="text-xs font-mono">Standard (3/Day)</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Input Module */}
+          <section className="bg-white rounded-2xl p-6 border border-gray-200 space-y-4">
+            <div>
+              <label className="text-[10px] font-black uppercase mb-1 block">Target City</label>
+              <input type="text" placeholder="e.g. Tokyo" className="w-full bg-[#F7FAFC] border border-[#2D3748]/10 rounded-lg px-4 py-3 focus:outline-none focus:border-[#D4FF00] transition-colors" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black uppercase mb-1 block">Duration</label>
+                <select className="w-full bg-[#F7FAFC] border border-[#2D3748]/10 rounded-lg px-2 py-3">
+                  <option>3 Days</option>
+                  <option>2 Days</option>
+                  <option>1 Day</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase mb-1 block">Pace</label>
+                <div className="flex bg-[#F7FAFC] rounded-lg p-1 border border-[#2D3748]/10">
+                  <button className="flex-1 text-[10px] font-bold py-2 bg-[#2D3748] text-white rounded-md">Std</button>
+                  <button className="flex-1 text-[10px] font-bold py-2">Fast</button>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={startGeneration}
+              disabled={isGenerating}
+              className={`w-full py-4 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-md ${isGenerating ? 'bg-gray-100 text-gray-400' : 'bg-[#D4FF00] text-[#2D3748] active:translate-y-1 active:shadow-none'}`}
+            >
+              {isGenerating ? <RefreshCcw className="animate-spin" size={18}/> : <Zap size={18} fill="currentColor"/>}
+              Generate Itinerary
+            </button>
+          </section>
+        </div>
+
+        {/* --- RIGHT COLUMN: THE ITINERARY OUTPUT --- */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Generation Progress (Only visible when active) */}
+          {isGenerating && (
+            <div className="bg-[#2D3748] text-white p-6 rounded-2xl overflow-hidden relative">
+              <div className="flex justify-between items-center mb-4 relative z-10">
+                <span className="text-xs font-bold uppercase tracking-widest">Compiling Deterministic Clusters...</span>
+                <span className="text-xs font-mono">{genProgress}%</span>
+              </div>
+              <div className="h-2 w-full bg-[#4A5568] rounded-full relative z-10">
+                <div className="h-full bg-[#D4FF00] transition-all duration-500 rounded-full" style={{ width: `${genProgress}%` }}></div>
+              </div>
+              <div className="absolute top-0 right-0 p-2 opacity-10">
+                <RefreshCcw size={80} className="animate-spin-slow" />
+              </div>
+            </div>
+          )}
+
+          {/* Main Content Area */}
+          <div className={`transition-opacity duration-500 ${isGenerating ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-black uppercase tracking-tight flex items-center gap-2">
+                <Map size={24} strokeWidth={1.5} className="text-[#4A5568]" /> Tokyo: Shibuya & Shinjuku
+              </h3>
+              <div className="flex gap-2">
+                 <div className="bg-white border border-[#2D3748]/10 px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm">
+                   <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                   <span className="text-[10px] font-bold uppercase">Efficiency: 1.12x</span>
+                 </div>
+                 <button className="bg-white border border-[#2D3748]/10 p-2 rounded-lg hover:border-[#D4FF00] transition-colors shadow-sm">
+                   <Save size={18} strokeWidth={1.5} />
+                 </button>
+              </div>
+            </div>
+
+            {/* Day Group */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <span className="bg-[#2D3748] text-[#D4FF00] text-xs font-black px-4 py-1 rounded-full uppercase">Day 01</span>
+                <div className="h-[2px] flex-1 bg-gradient-to-right from-gray-200 to-transparent"></div>
+              </div>
+
+              {/* Activity Cards */}
+              {[
+                { time: "09:00", title: "Meiji Jingu Shrine", tag: "Culture", dur: "90m" },
+                { time: "11:30", title: "Yoyogi Park Loop", tag: "Nature", dur: "60m" },
+                { time: "13:30", title: "Shibuya Crossing", tag: "Landmark", dur: "45m" }
+              ].map((act, i) => (
+                <div key={i} className="group bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 hover:border-[#2D3748] transition-all hover:shadow-lg">
+                  <div className="text-[#4A5568]">
+                    <GripVertical size={20} strokeWidth={1.5} className="opacity-20 group-hover:opacity-100 cursor-grab" />
+                  </div>
+                  <div className="w-16">
+                    <span className="text-xs font-mono font-bold text-[#4A5568]">{act.time}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-sm font-black uppercase tracking-tight">{act.title}</h4>
+                      <span className="bg-[#F7FAFC] border border-gray-200 text-[9px] font-bold px-1.5 py-0.5 rounded text-[#4A5568] uppercase">{act.tag}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-[10px] text-[#4A5568] font-bold opacity-60 uppercase">
+                      <span className="flex items-center gap-1"><Clock size={12} strokeWidth={1.5}/> {act.dur}</span>
+                      <span className="flex items-center gap-1"><Navigation size={12} strokeWidth={1.5}/> 0.6km walk</span>
+                    </div>
+                  </div>
+                  <button className="text-gray-300 hover:text-red-500 transition-colors p-2">
+                    <Trash2 size={18} strokeWidth={1.5} />
+                  </button>
+                </div>
+              ))}
+
+              {/* Fallback Notice Styling */}
+              <div className="bg-[#2D3748] text-white p-4 rounded-xl flex gap-4 items-start border-l-8 border-[#D4FF00]">
+                <Info size={20} className="text-[#D4FF00] shrink-0" strokeWidth={1.5} />
+                <div>
+                  <p className="text-[11px] leading-relaxed">
+                    <span className="text-[#D4FF00] font-black uppercase mr-2 underline">System Note:</span>
+                    Clustering radius expanded to 4km for Day 02 to maintain category diversity bonus. Route efficiency remains within P90 limits.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* --- FLOATING FEEDBACK (DETERMINISTIC UX) --- */}
+      <footer className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-lg bg-white/80 backdrop-blur-md border border-[#2D3748]/10 rounded-2xl p-3 flex justify-between items-center shadow-2xl">
+        <div className="flex items-center gap-2 px-3">
+          <AlertTriangle size={16} className="text-amber-500" strokeWidth={1.5}/>
+          <span className="text-[10px] font-black uppercase">Low tolerance for imperfection?</span>
+        </div>
+        <button className="text-[10px] font-black uppercase bg-[#2D3748] text-white px-4 py-2 rounded-lg hover:bg-black transition-colors">
+          Report Error
+        </button>
+      </footer>
+    </div>
+  );
+};
+
+export default WayfinderBrandKit;
