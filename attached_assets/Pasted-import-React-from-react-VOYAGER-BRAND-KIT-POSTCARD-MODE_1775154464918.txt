@@ -1,0 +1,154 @@
+import React from 'react';
+
+/**
+ * VOYAGER BRAND KIT: POSTCARD (MODERN RETRO)
+ * * DESIGN PRINCIPLES:
+ * 1. Hard Shadows (No blurs)
+ * 2. Thick Borders (2px - 3px)
+ * 3. Tactile Textures (Grain overlay)
+ * 4. High-Contrast Typography (Serif for charm, Mono for data)
+ */
+
+const PostcardBrandKit: React.FC = () => {
+  return (
+    <div className="relative min-h-screen bg-[#FEF3C7] text-[#451A03] font-sans p-8 overflow-hidden">
+      
+      {/* 1. GRAIN OVERLAY (SVG Filter) */}
+      <svg className="fixed top-0 left-0 w-full h-full pointer-events-none opacity-[0.15] contrast-150 brightness-100">
+        <filter id="grain">
+          <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+          <feColorMatrix type="saturate" values="0" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#grain)" />
+      </svg>
+
+      <div className="relative z-10 max-w-5xl mx-auto">
+        
+        {/* HEADER */}
+        <header className="mb-16 border-b-4 border-[#451A03] pb-6">
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="font-mono text-sm uppercase tracking-widest text-[#C2410C] font-bold mb-2">
+                // SYSTEM_STATUS: VERIFIED_ADVENTURE
+              </p>
+              <h1 className="text-6xl font-serif font-black italic">Voyager.</h1>
+            </div>
+            <div className="text-right hidden md:block">
+              <p className="font-serif italic text-lg">"Predictable paths for</p>
+              <p className="font-serif italic text-lg">unpredictable souls."</p>
+            </div>
+          </div>
+        </header>
+
+        <main className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          
+          {/* COLUMN 1: BRAND SPECS */}
+          <section className="space-y-8">
+            <div>
+              <h2 className="text-2xl font-serif font-bold mb-4">Color Palette</h2>
+              <div className="space-y-3">
+                <ColorSwatch hex="#C2410C" name="Terracotta (Primary)" label="Action & Energy" />
+                <ColorSwatch hex="#14B8A6" name="Teal (Secondary)" label="Discovery & Flow" />
+                <ColorSwatch hex="#FEF3C7" name="Vintage Cream" label="Background" />
+                <ColorSwatch hex="#FCD34D" name="Mustard" label="Highlights" />
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-serif font-bold mb-4">Typography</h2>
+              <div className="p-4 bg-[#FFFBEB] border-2 border-[#451A03] shadow-[4px_4px_0px_0px_rgba(69,26,3,1)]">
+                <p className="font-serif text-3xl mb-2">DM Serif Display</p>
+                <p className="font-sans text-lg mb-2">Sora (Body Sans)</p>
+                <p className="font-mono text-sm uppercase tracking-tighter">JetBrains Mono (Data)</p>
+              </div>
+            </div>
+          </section>
+
+          {/* COLUMN 2 & 3: UI ELEMENTS & ITINERARY PREVIEW */}
+          <section className="lg:col-span-2 space-y-12">
+            
+            {/* UI ELEMENTS */}
+            <div>
+              <h2 className="text-2xl font-serif font-bold mb-6 underline decoration-[#FCD34D] decoration-4 underline-offset-4">
+                Interactive Elements
+              </h2>
+              <div className="flex flex-wrap gap-6">
+                {/* PRIMARY STICKER BUTTON */}
+                <button className="px-6 py-3 bg-[#C2410C] text-white border-2 border-[#451A03] font-bold uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(69,26,3,1)] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] transition-all">
+                  Generate Trip
+                </button>
+
+                {/* SECONDARY BUTTON */}
+                <button className="px-6 py-3 bg-[#14B8A6] text-[#451A03] border-2 border-[#451A03] font-bold uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(69,26,3,1)] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] transition-all">
+                  Save Postcard
+                </button>
+
+                {/* TAGS */}
+                <div className="flex gap-2 items-center">
+                  <span className="px-3 py-1 bg-[#FCD34D] border-2 border-[#451A03] font-mono text-xs font-bold rounded-full">#URBAN</span>
+                  <span className="px-3 py-1 bg-white border-2 border-[#451A03] font-mono text-xs font-bold rounded-full">#24HOURS</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ITINERARY PREVIEW */}
+            <div>
+              <h2 className="text-2xl font-serif font-bold mb-6">Itinerary Component</h2>
+              <div className="bg-white border-2 border-[#451A03] shadow-[8px_8px_0px_0px_rgba(20,184,166,1)] p-6 relative">
+                
+                {/* STAMP DETAIL */}
+                <div className="absolute -top-4 -right-4 w-16 h-16 bg-[#C2410C] border-2 border-[#451A03] rounded-full flex items-center justify-center text-white font-mono text-[10px] text-center rotate-12 shadow-md">
+                  KYOTO<br/>MAR 2026
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="text-4xl font-serif italic mb-1">Gion District Rush</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs bg-[#451A03] text-white px-2 py-0.5">09:00 AM</span>
+                    <span className="font-mono text-xs text-[#C2410C] font-bold">● DETERMINISTIC_PICK</span>
+                  </div>
+                </div>
+
+                <p className="font-sans leading-relaxed text-lg mb-6">
+                  Navigate the narrow wooden streets before the tourist wave hits. 
+                  The heuristic engine prioritizes the **Sannenzaka path** for optimal morning light and 88% higher speed-to-scenery ratio.
+                </p>
+
+                <div className="border-t-2 border-[#451A03] pt-4 flex justify-between items-center">
+                  <div className="space-x-4">
+                    <span className="text-sm font-bold border-b-2 border-[#14B8A6]">View Map</span>
+                    <span className="text-sm font-bold border-b-2 border-[#14B8A6]">Local Tips</span>
+                  </div>
+                  <div className="font-mono text-[10px] opacity-50 uppercase">
+                    Ref: KYO-A1-V3
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <footer className="mt-20 border-t-2 border-[#451A03] pt-8 text-center pb-12">
+          <p className="font-mono text-xs uppercase opacity-70 italic">
+            Built for the 20-30 demographic. Powered by Deterministic Heuristics. No bloat.
+          </p>
+        </footer>
+      </div>
+    </div>
+  );
+};
+
+const ColorSwatch: React.FC<{ hex: string; name: string; label: string }> = ({ hex, name, label }) => (
+  <div className="flex items-center gap-4 group">
+    <div 
+      className="w-12 h-12 border-2 border-[#451A03] shadow-[2px_2px_0px_0px_rgba(69,26,3,1)] transition-transform group-hover:-translate-y-1" 
+      style={{ backgroundColor: hex }} 
+    />
+    <div>
+      <p className="font-mono text-xs font-bold leading-none">{name}</p>
+      <p className="text-[10px] uppercase opacity-60 font-sans tracking-tighter">{label}</p>
+    </div>
+  </div>
+);
+
+export default PostcardBrandKit;

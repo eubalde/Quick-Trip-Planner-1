@@ -30,8 +30,6 @@ function NativeTabLayout() {
 
 function ClassicTabLayout() {
   const colors = useColors();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
 
@@ -43,27 +41,18 @@ function ClassicTabLayout() {
         headerShown: false,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.background,
-          borderTopWidth: isWeb ? 1 : 0,
+          backgroundColor: colors.card,
+          borderTopWidth: 2,
           borderTopColor: colors.border,
           elevation: 0,
           ...(isWeb ? { height: 84 } : {}),
         },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView
-              intensity={100}
-              tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : isWeb ? (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: colors.background },
-              ]}
-            />
-          ) : null,
+        tabBarLabelStyle: {
+          fontFamily: "SpaceMono_400Regular",
+          fontSize: 9,
+          textTransform: "uppercase",
+          letterSpacing: 1,
+        },
       }}
     >
       <Tabs.Screen
@@ -72,9 +61,9 @@ function ClassicTabLayout() {
           title: "Plan",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="map" tintColor={color} size={24} />
+              <SymbolView name="map" tintColor={color} size={22} />
             ) : (
-              <Feather name="map" size={22} color={color} />
+              <Feather name="map" size={20} color={color} />
             ),
         }}
       />
@@ -84,9 +73,9 @@ function ClassicTabLayout() {
           title: "Saved",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="bookmark" tintColor={color} size={24} />
+              <SymbolView name="bookmark" tintColor={color} size={22} />
             ) : (
-              <Feather name="bookmark" size={22} color={color} />
+              <Feather name="bookmark" size={20} color={color} />
             ),
         }}
       />
@@ -96,9 +85,9 @@ function ClassicTabLayout() {
           title: "Profile",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="person" tintColor={color} size={24} />
+              <SymbolView name="person" tintColor={color} size={22} />
             ) : (
-              <Feather name="user" size={22} color={color} />
+              <Feather name="user" size={20} color={color} />
             ),
         }}
       />

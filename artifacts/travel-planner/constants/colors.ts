@@ -1,56 +1,58 @@
 /**
- * Trailhead / Wayfinder brand palette
+ * VOYAGER BRAND KIT — POSTCARD (MODERN RETRO)
  *
- * Primary:  Forest Carbon  #2D3748
- * Action:   Acid Lime      #D4FF00
- * Surface:  Off-White      #F7FAFC
- * Detail:   Slate Blue     #4A5568
- * BG:       Ash            #EDF2F7
+ * Terracotta  #C2410C  — Primary action & energy
+ * Teal        #14B8A6  — Discovery & flow
+ * Cream       #FEF3C7  — Background surface
+ * Mustard     #FCD34D  — Highlights
+ * Brown       #451A03  — Text & borders
  */
 
 const colors = {
   light: {
-    text: "#2D3748",
-    tint: "#D4FF00",
+    text: "#451A03",
+    tint: "#C2410C",
 
-    background: "#EDF2F7",
-    foreground: "#2D3748",
+    background: "#FEF3C7",
+    foreground: "#451A03",
 
-    card: "#F7FAFC",
-    cardForeground: "#2D3748",
+    card: "#FFFBEB",
+    cardForeground: "#451A03",
 
-    primary: "#2D3748",
-    primaryForeground: "#D4FF00",
+    primary: "#C2410C",
+    primaryForeground: "#ffffff",
 
-    secondary: "#F7FAFC",
-    secondaryForeground: "#2D3748",
+    secondary: "#14B8A6",
+    secondaryForeground: "#ffffff",
 
-    muted: "#E2E8F0",
-    mutedForeground: "#4A5568",
+    muted: "#FDE68A",
+    mutedForeground: "#78350F",
 
-    accent: "#D4FF00",
-    accentForeground: "#2D3748",
+    accent: "#FCD34D",
+    accentForeground: "#451A03",
 
-    destructive: "#E53E3E",
+    destructive: "#DC2626",
     destructiveForeground: "#ffffff",
 
-    border: "rgba(45,55,72,0.12)",
-    input: "rgba(45,55,72,0.12)",
+    border: "#451A03",
+    input: "#451A03",
 
-    success: "#38A169",
+    success: "#14B8A6",
     successForeground: "#ffffff",
 
-    warning: "#D69E2E",
-    warningForeground: "#2D3748",
+    warning: "#D97706",
+    warningForeground: "#ffffff",
 
-    // brand specifics
-    lime: "#D4FF00",
-    carbon: "#2D3748",
-    slate: "#4A5568",
-    ash: "#EDF2F7",
+    // Brand specifics
+    terracotta: "#C2410C",
+    teal: "#14B8A6",
+    cream: "#FEF3C7",
+    mustard: "#FCD34D",
+    brown: "#451A03",
+    parchment: "#FFFBEB",
   },
 
-  radius: 12,
+  radius: 4,
 };
 
 export default colors;

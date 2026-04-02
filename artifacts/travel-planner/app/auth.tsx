@@ -31,27 +31,17 @@ export default function AuthScreen() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const handleSubmit = async () => {
-    if (!email.trim() || !password) {
-      Alert.alert("Missing fields", "Please fill in all required fields.");
-      return;
-    }
-    if (isRegister && !name.trim()) {
-      Alert.alert("Missing name", "Please enter your name.");
-      return;
-    }
-    if (password.length < 8) {
-      Alert.alert("Weak password", "Password must be at least 8 characters.");
-      return;
-    }
+    if (!email.trim() || !password) { Alert.alert("Missing Fields", "Fill in all required fields."); return; }
+    if (isRegister && !name.trim()) { Alert.alert("Missing Name", "Enter your full name."); return; }
+    if (password.length < 8) { Alert.alert("Weak Password", "Minimum 8 characters required."); return; }
 
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
     try {
       if (isRegister) {
         await register(email.trim(), password, name.trim());
@@ -67,46 +57,36 @@ export default function AuthScreen() {
     }
   };
 
-  const styles = createStyles(colors);
+  const s = makeStyles(colors);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.topBar, { paddingTop: topPad + 8 }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+      <View style={[s.root, { backgroundColor: colors.background }]}>
+        <View style={[s.topBar, { paddingTop: topPad + 8 }]}>
+          <TouchableOpacity onPress={() => router.back()} style={s.closeBtn}>
             <Feather name="x" size={20} color={colors.foreground} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.logoRow}>
-            <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
-              <Feather name="map-pin" size={18} color="#fff" />
-            </View>
-            <Text style={[styles.logoText, { color: colors.primary }]}>Wandr</Text>
-          </View>
-
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            {isRegister ? "Create account" : "Welcome back"}
+        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <Text style={[s.sysLine, { color: colors.primary }]}>
+            {isRegister ? "// NEW_EXPEDITION_PROFILE" : "// SESSION_RESTORE"}
           </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+          <Text style={s.brandName}>Voyager.</Text>
+          <Text style={[s.subtitle, { color: colors.mutedForeground }]}>
             {isRegister
-              ? "Sign up to save and revisit your itineraries"
-              : "Sign in to access your saved trips"}
+              ? "Create your explorer profile to save and revisit itineraries."
+              : "Welcome back. Your postcards are waiting."}
           </Text>
 
-          <View style={styles.form}>
+          <View style={s.form}>
             {isRegister && (
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Full Name</Text>
-                <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.secondary }]}>
-                  <Feather name="user" size={16} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+              <View style={s.field}>
+                <Text style={[s.fieldLabel, { color: colors.mutedForeground }]}>FULL NAME</Text>
+                <View style={[s.inputRow, { borderColor: colors.border }]}>
+                  <Feather name="user" size={14} color={colors.mutedForeground} style={{ marginRight: 8 }} />
                   <TextInput
-                    style={[styles.input, { color: colors.foreground }]}
+                    style={[s.input, { color: colors.foreground }]}
                     placeholder="Your name"
                     placeholderTextColor={colors.mutedForeground}
                     value={name}
@@ -118,71 +98,62 @@ export default function AuthScreen() {
               </View>
             )}
 
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Email</Text>
-              <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.secondary }]}>
-                <Feather name="mail" size={16} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+            <View style={s.field}>
+              <Text style={[s.fieldLabel, { color: colors.mutedForeground }]}>EMAIL</Text>
+              <View style={[s.inputRow, { borderColor: colors.border }]}>
+                <Feather name="mail" size={14} color={colors.mutedForeground} style={{ marginRight: 8 }} />
                 <TextInput
-                  style={[styles.input, { color: colors.foreground }]}
+                  style={[s.input, { color: colors.foreground }]}
                   placeholder="your@email.com"
                   placeholderTextColor={colors.mutedForeground}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  autoComplete="email"
                   returnKeyType="next"
                 />
               </View>
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Password</Text>
-              <View style={[styles.inputRow, { borderColor: colors.border, backgroundColor: colors.secondary }]}>
-                <Feather name="lock" size={16} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+            <View style={s.field}>
+              <Text style={[s.fieldLabel, { color: colors.mutedForeground }]}>PASSWORD</Text>
+              <View style={[s.inputRow, { borderColor: colors.border }]}>
+                <Feather name="lock" size={14} color={colors.mutedForeground} style={{ marginRight: 8 }} />
                 <TextInput
-                  style={[styles.input, { color: colors.foreground }]}
+                  style={[s.input, { color: colors.foreground }]}
                   placeholder="Min. 8 characters"
                   placeholderTextColor={colors.mutedForeground}
                   value={password}
                   onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoComplete="password"
+                  secureTextEntry={!showPw}
                   returnKeyType="done"
                   onSubmitEditing={handleSubmit}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Feather name={showPassword ? "eye-off" : "eye"} size={16} color={colors.mutedForeground} />
+                <TouchableOpacity onPress={() => setShowPw(!showPw)}>
+                  <Feather name={showPw ? "eye-off" : "eye"} size={14} color={colors.mutedForeground} />
                 </TouchableOpacity>
               </View>
             </View>
 
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: isLoading ? colors.muted : colors.primary }]}
+              style={[s.submitBtn, { backgroundColor: colors.primary, borderColor: colors.border, shadowColor: colors.border }]}
               onPress={handleSubmit}
               disabled={isLoading}
-              activeOpacity={0.85}
             >
               {isLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.submitBtnText}>
-                  {isRegister ? "Create Account" : "Sign In"}
+                <Text style={s.submitBtnText}>
+                  {isRegister ? "CREATE PROFILE" : "RESTORE SESSION"}
                 </Text>
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.switchMode}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setIsRegister(!isRegister);
-              }}
-            >
-              <Text style={[styles.switchText, { color: colors.mutedForeground }]}>
-                {isRegister ? "Already have an account? " : "Don't have an account? "}
-                <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }}>
-                  {isRegister ? "Sign In" : "Create one"}
+            <TouchableOpacity style={s.switchMode} onPress={() => { Haptics.selectionAsync(); setIsRegister(!isRegister); }}>
+              <Text style={[s.switchText, { color: colors.mutedForeground }]}>
+                {isRegister ? "// ALREADY_REGISTERED → " : "// NEW_EXPLORER → "}
+                <Text style={{ color: colors.primary, fontFamily: "SpaceMono_700Bold" }}>
+                  {isRegister ? "SIGN IN" : "CREATE ACCOUNT"}
                 </Text>
               </Text>
             </TouchableOpacity>
@@ -193,44 +164,41 @@ export default function AuthScreen() {
   );
 }
 
-function createStyles(colors: ReturnType<typeof useColors>) {
+function makeStyles(colors: ReturnType<typeof useColors>) {
   return StyleSheet.create({
-    container: { flex: 1 },
+    root: { flex: 1 },
     topBar: { paddingHorizontal: 20, paddingBottom: 8 },
     closeBtn: { alignSelf: "flex-start", padding: 4 },
-    scrollContent: { paddingHorizontal: 24, paddingBottom: 40 },
-    logoRow: { flexDirection: "row", alignItems: "center", marginBottom: 32, marginTop: 8 },
-    logoCircle: {
-      width: 32,
-      height: 32,
-      borderRadius: 10,
-      alignItems: "center",
-      justifyContent: "center",
-      marginRight: 8,
-    },
-    logoText: { fontSize: 20, fontFamily: "Inter_700Bold" },
-    title: { fontSize: 28, fontFamily: "Inter_700Bold", marginBottom: 8 },
-    subtitle: { fontSize: 15, fontFamily: "Inter_400Regular", marginBottom: 32, lineHeight: 22 },
+    scroll: { paddingHorizontal: 24, paddingBottom: 40 },
+    sysLine: { fontFamily: "SpaceMono_400Regular", fontSize: 9, marginBottom: 4, marginTop: 8 },
+    brandName: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 44, color: "#451A03", marginBottom: 12 },
+    subtitle: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22, marginBottom: 28 },
     form: { gap: 16 },
-    fieldGroup: { gap: 6 },
-    fieldLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
+    field: { gap: 6 },
+    fieldLabel: { fontFamily: "SpaceMono_700Bold", fontSize: 9, letterSpacing: 2 },
     inputRow: {
       flexDirection: "row",
       alignItems: "center",
-      borderRadius: 12,
-      borderWidth: 1,
+      borderWidth: 2,
+      borderRadius: 4,
       paddingHorizontal: 14,
       paddingVertical: 12,
+      backgroundColor: "#FFFBEB",
     },
-    input: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
+    input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 15 },
     submitBtn: {
-      borderRadius: 14,
-      paddingVertical: 16,
+      paddingVertical: 18,
       alignItems: "center",
+      borderWidth: 2,
+      borderRadius: 4,
+      shadowOffset: { width: 4, height: 4 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 4,
       marginTop: 8,
     },
-    submitBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+    submitBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 12, color: "#fff", letterSpacing: 2 },
     switchMode: { alignItems: "center", paddingTop: 8 },
-    switchText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+    switchText: { fontFamily: "SpaceMono_400Regular", fontSize: 10, textAlign: "center" },
   });
 }
