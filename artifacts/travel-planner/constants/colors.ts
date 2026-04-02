@@ -1,40 +1,53 @@
+/**
+ * Trailhead / Wayfinder brand palette
+ *
+ * Primary:  Forest Carbon  #2D3748
+ * Action:   Acid Lime      #D4FF00
+ * Surface:  Off-White      #F7FAFC
+ * Detail:   Slate Blue     #4A5568
+ * BG:       Ash            #EDF2F7
+ */
+
 const colors = {
   light: {
-    text: "#0f172a",
-    tint: "#2563eb",
+    text: "#2D3748",
+    tint: "#D4FF00",
 
-    background: "#f8fafc",
-    foreground: "#0f172a",
+    background: "#EDF2F7",
+    foreground: "#2D3748",
 
-    card: "#ffffff",
-    cardForeground: "#0f172a",
+    card: "#F7FAFC",
+    cardForeground: "#2D3748",
 
-    primary: "#2563eb",
-    primaryForeground: "#ffffff",
+    primary: "#2D3748",
+    primaryForeground: "#D4FF00",
 
-    secondary: "#f1f5f9",
-    secondaryForeground: "#334155",
+    secondary: "#F7FAFC",
+    secondaryForeground: "#2D3748",
 
-    muted: "#f1f5f9",
-    mutedForeground: "#64748b",
+    muted: "#E2E8F0",
+    mutedForeground: "#4A5568",
 
-    accent: "#dbeafe",
-    accentForeground: "#1e40af",
+    accent: "#D4FF00",
+    accentForeground: "#2D3748",
 
-    destructive: "#ef4444",
+    destructive: "#E53E3E",
     destructiveForeground: "#ffffff",
 
-    border: "#e2e8f0",
-    input: "#e2e8f0",
+    border: "rgba(45,55,72,0.12)",
+    input: "rgba(45,55,72,0.12)",
 
-    success: "#10b981",
+    success: "#38A169",
     successForeground: "#ffffff",
 
-    warning: "#f59e0b",
-    warningForeground: "#ffffff",
+    warning: "#D69E2E",
+    warningForeground: "#2D3748",
 
-    surfaceElevated: "#ffffff",
-    overlay: "rgba(15, 23, 42, 0.5)",
+    // brand specifics
+    lime: "#D4FF00",
+    carbon: "#2D3748",
+    slate: "#4A5568",
+    ash: "#EDF2F7",
   },
 
   radius: 12,
