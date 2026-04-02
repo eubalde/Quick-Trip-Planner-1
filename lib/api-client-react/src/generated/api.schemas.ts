@@ -8,3 +8,137 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface ErrorResponse {
+  error: string;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
+export type ActivityCategory =
+  (typeof ActivityCategory)[keyof typeof ActivityCategory];
+
+export const ActivityCategory = {
+  museum: "museum",
+  landmark: "landmark",
+  park: "park",
+  restaurant: "restaurant",
+  shopping: "shopping",
+  entertainment: "entertainment",
+  cultural: "cultural",
+  outdoor: "outdoor",
+  nightlife: "nightlife",
+  tour: "tour",
+} as const;
+
+export type TravelPace = (typeof TravelPace)[keyof typeof TravelPace];
+
+export const TravelPace = {
+  relaxed: "relaxed",
+  standard: "standard",
+  packed: "packed",
+} as const;
+
+export type UserInterest = (typeof UserInterest)[keyof typeof UserInterest];
+
+export const UserInterest = {
+  history: "history",
+  art: "art",
+  food: "food",
+  nature: "nature",
+  architecture: "architecture",
+  nightlife: "nightlife",
+  shopping: "shopping",
+  sports: "sports",
+} as const;
+
+export interface Activity {
+  id: string;
+  name: string;
+  category: ActivityCategory;
+  /** Duration in minutes */
+  estimated_duration: number;
+  description: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  score?: number;
+}
+
+export interface DayPlan {
+  day: number;
+  activities: Activity[];
+}
+
+export interface GenerateItineraryRequest {
+  city: string;
+  /**
+   * @minimum 1
+   * @maximum 3
+   */
+  tripDays: number;
+  /** @maxItems 3 */
+  interests: UserInterest[];
+  pace: TravelPace;
+  /** Optional seed for reproducible results */
+  seed?: number;
+}
+
+export interface GenerateItineraryResponse {
+  city: string;
+  tripDays: number;
+  pace: TravelPace;
+  interests: UserInterest[];
+  days: DayPlan[];
+  isOptimized: boolean;
+  fallbackTier?: number | null;
+  generatedAt: string;
+}
+
+export interface SaveItineraryRequest {
+  city: string;
+  tripDays: number;
+  pace: TravelPace;
+  interests: UserInterest[];
+  days: DayPlan[];
+  isOptimized: boolean;
+}
+
+export interface SavedItinerary {
+  id: string;
+  userId: string;
+  city: string;
+  tripDays: number;
+  pace: TravelPace;
+  interests: UserInterest[];
+  days: DayPlan[];
+  isOptimized: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  /** @minLength 8 */
+  password: string;
+  name: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  user: UserProfile;
+  token: string;
+}

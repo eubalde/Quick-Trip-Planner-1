@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "KoVK_uSw2eB21rDS0WP8k"
+uri = "file://artifacts/travel-planner/assets/images/icon.png"
+type = "image"
+title = "travel planner app icon"
+
+[[generated]]
+id = "NMld3IJqvkelR15nzGnmy"
+uri = "file://artifacts/travel-planner/assets/images/hero-city.png"
+type = "image"
+title = "city hero image"
+
+[[generated]]
+id = "-HIcqIoKbcL65X7rH8u3W"
+uri = "file://artifacts/travel-planner/assets/images/city-street.png"
+type = "image"
+title = "city street travel"

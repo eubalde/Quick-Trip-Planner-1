@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: itinerary
+    description: Itinerary generation and management
+  - name: auth
+    description: Authentication operations
 paths:
   /healthz:
     get:
@@ -24,6 +28,215 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /itinerary/generate:
+    post:
+      operationId: generateItinerary
+      tags: [itinerary]
+      summary: Generate a travel itinerary
+      description: Uses AI to generate a day-by-day travel itinerary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateItineraryRequest"
+      responses:
+        "200":
+          description: Generated itinerary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateItineraryResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "200":
+          description: Registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [auth]
+      summary: Login a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      tags: [auth]
+      summary: Logout a user
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /itinerary:
+    get:
+      operationId: getSavedItineraries
+      tags: [itinerary]
+      summary: Get saved itineraries for the current user
+      responses:
+        "200":
+          description: List of saved itineraries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SavedItinerary"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      operationId: saveItinerary
+      tags: [itinerary]
+      summary: Save an itinerary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveItineraryRequest"
+      responses:
+        "200":
+          description: Saved itinerary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedItinerary"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /itinerary/{id}:
+    get:
+      operationId: getItinerary
+      tags: [itinerary]
+      summary: Get a specific saved itinerary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The itinerary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedItinerary"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteItinerary
+      tags: [itinerary]
+      summary: Delete a saved itinerary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +247,273 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    ActivityCategory:
+      type: string
+      enum:
+        - museum
+        - landmark
+        - park
+        - restaurant
+        - shopping
+        - entertainment
+        - cultural
+        - outdoor
+        - nightlife
+        - tour
+
+    TravelPace:
+      type: string
+      enum:
+        - relaxed
+        - standard
+        - packed
+
+    UserInterest:
+      type: string
+      enum:
+        - history
+        - art
+        - food
+        - nature
+        - architecture
+        - nightlife
+        - shopping
+        - sports
+
+    Activity:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          $ref: "#/components/schemas/ActivityCategory"
+        estimated_duration:
+          type: integer
+          description: Duration in minutes
+        description:
+          type: string
+        address:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        score:
+          type: number
+      required:
+        - id
+        - name
+        - category
+        - estimated_duration
+        - description
+
+    DayPlan:
+      type: object
+      properties:
+        day:
+          type: integer
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/Activity"
+      required:
+        - day
+        - activities
+
+    GenerateItineraryRequest:
+      type: object
+      properties:
+        city:
+          type: string
+        tripDays:
+          type: integer
+          minimum: 1
+          maximum: 3
+        interests:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserInterest"
+          maxItems: 3
+        pace:
+          $ref: "#/components/schemas/TravelPace"
+        seed:
+          type: integer
+          description: Optional seed for reproducible results
+      required:
+        - city
+        - tripDays
+        - interests
+        - pace
+
+    GenerateItineraryResponse:
+      type: object
+      properties:
+        city:
+          type: string
+        tripDays:
+          type: integer
+        pace:
+          $ref: "#/components/schemas/TravelPace"
+        interests:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserInterest"
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/DayPlan"
+        isOptimized:
+          type: boolean
+        fallbackTier:
+          type: integer
+          nullable: true
+        generatedAt:
+          type: string
+      required:
+        - city
+        - tripDays
+        - pace
+        - interests
+        - days
+        - isOptimized
+        - generatedAt
+
+    SaveItineraryRequest:
+      type: object
+      properties:
+        city:
+          type: string
+        tripDays:
+          type: integer
+        pace:
+          $ref: "#/components/schemas/TravelPace"
+        interests:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserInterest"
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/DayPlan"
+        isOptimized:
+          type: boolean
+      required:
+        - city
+        - tripDays
+        - pace
+        - interests
+        - days
+        - isOptimized
+
+    SavedItinerary:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        city:
+          type: string
+        tripDays:
+          type: integer
+        pace:
+          $ref: "#/components/schemas/TravelPace"
+        interests:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserInterest"
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/DayPlan"
+        isOptimized:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - city
+        - tripDays
+        - pace
+        - interests
+        - days
+        - isOptimized
+        - createdAt
+        - updatedAt
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+      required:
+        - email
+        - password
+        - name
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserProfile"
+        token:
+          type: string
+      required:
+        - user
+        - token
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - email
+        - name
+        - createdAt

@@ -6,4 +6,19 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./activity";
+export * from "./activityCategory";
+export * from "./authResponse";
+export * from "./dayPlan";
+export * from "./errorResponse";
+export * from "./generateItineraryRequest";
+export * from "./generateItineraryResponse";
 export * from "./healthStatus";
+export * from "./loginRequest";
+export * from "./messageResponse";
+export * from "./registerRequest";
+export * from "./savedItinerary";
+export * from "./saveItineraryRequest";
+export * from "./travelPace";
+export * from "./userInterest";
+export * from "./userProfile";

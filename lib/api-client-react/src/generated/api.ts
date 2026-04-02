@@ -5,18 +5,33 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  AuthResponse,
+  ErrorResponse,
+  GenerateItineraryRequest,
+  GenerateItineraryResponse,
+  HealthStatus,
+  LoginRequest,
+  MessageResponse,
+  RegisterRequest,
+  SaveItineraryRequest,
+  SavedItinerary,
+  UserProfile,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -92,6 +107,753 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Uses AI to generate a day-by-day travel itinerary
+ * @summary Generate a travel itinerary
+ */
+export const getGenerateItineraryUrl = () => {
+  return `/api/itinerary/generate`;
+};
+
+export const generateItinerary = async (
+  generateItineraryRequest: GenerateItineraryRequest,
+  options?: RequestInit,
+): Promise<GenerateItineraryResponse> => {
+  return customFetch<GenerateItineraryResponse>(getGenerateItineraryUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(generateItineraryRequest),
+  });
+};
+
+export const getGenerateItineraryMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateItinerary>>,
+    TError,
+    { data: BodyType<GenerateItineraryRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateItinerary>>,
+  TError,
+  { data: BodyType<GenerateItineraryRequest> },
+  TContext
+> => {
+  const mutationKey = ["generateItinerary"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateItinerary>>,
+    { data: BodyType<GenerateItineraryRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateItinerary(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateItineraryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateItinerary>>
+>;
+export type GenerateItineraryMutationBody = BodyType<GenerateItineraryRequest>;
+export type GenerateItineraryMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Generate a travel itinerary
+ */
+export const useGenerateItinerary = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateItinerary>>,
+    TError,
+    { data: BodyType<GenerateItineraryRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateItinerary>>,
+  TError,
+  { data: BodyType<GenerateItineraryRequest> },
+  TContext
+> => {
+  return useMutation(getGenerateItineraryMutationOptions(options));
+};
+
+/**
+ * @summary Register a new user
+ */
+export const getRegisterUserUrl = () => {
+  return `/api/auth/register`;
+};
+
+export const registerUser = async (
+  registerRequest: RegisterRequest,
+  options?: RequestInit,
+): Promise<AuthResponse> => {
+  return customFetch<AuthResponse>(getRegisterUserUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registerRequest),
+  });
+};
+
+export const getRegisterUserMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerUser>>,
+    TError,
+    { data: BodyType<RegisterRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registerUser>>,
+  TError,
+  { data: BodyType<RegisterRequest> },
+  TContext
+> => {
+  const mutationKey = ["registerUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registerUser>>,
+    { data: BodyType<RegisterRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return registerUser(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegisterUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registerUser>>
+>;
+export type RegisterUserMutationBody = BodyType<RegisterRequest>;
+export type RegisterUserMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Register a new user
+ */
+export const useRegisterUser = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerUser>>,
+    TError,
+    { data: BodyType<RegisterRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registerUser>>,
+  TError,
+  { data: BodyType<RegisterRequest> },
+  TContext
+> => {
+  return useMutation(getRegisterUserMutationOptions(options));
+};
+
+/**
+ * @summary Login a user
+ */
+export const getLoginUserUrl = () => {
+  return `/api/auth/login`;
+};
+
+export const loginUser = async (
+  loginRequest: LoginRequest,
+  options?: RequestInit,
+): Promise<AuthResponse> => {
+  return customFetch<AuthResponse>(getLoginUserUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(loginRequest),
+  });
+};
+
+export const getLoginUserMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof loginUser>>,
+    TError,
+    { data: BodyType<LoginRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof loginUser>>,
+  TError,
+  { data: BodyType<LoginRequest> },
+  TContext
+> => {
+  const mutationKey = ["loginUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof loginUser>>,
+    { data: BodyType<LoginRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return loginUser(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LoginUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof loginUser>>
+>;
+export type LoginUserMutationBody = BodyType<LoginRequest>;
+export type LoginUserMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Login a user
+ */
+export const useLoginUser = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof loginUser>>,
+    TError,
+    { data: BodyType<LoginRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof loginUser>>,
+  TError,
+  { data: BodyType<LoginRequest> },
+  TContext
+> => {
+  return useMutation(getLoginUserMutationOptions(options));
+};
+
+/**
+ * @summary Logout a user
+ */
+export const getLogoutUserUrl = () => {
+  return `/api/auth/logout`;
+};
+
+export const logoutUser = async (
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getLogoutUserUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLogoutUserMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logoutUser>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof logoutUser>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["logoutUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof logoutUser>>,
+    void
+  > = () => {
+    return logoutUser(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LogoutUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof logoutUser>>
+>;
+
+export type LogoutUserMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Logout a user
+ */
+export const useLogoutUser = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logoutUser>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof logoutUser>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getLogoutUserMutationOptions(options));
+};
+
+/**
+ * @summary Get saved itineraries for the current user
+ */
+export const getGetSavedItinerariesUrl = () => {
+  return `/api/itinerary`;
+};
+
+export const getSavedItineraries = async (
+  options?: RequestInit,
+): Promise<SavedItinerary[]> => {
+  return customFetch<SavedItinerary[]>(getGetSavedItinerariesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSavedItinerariesQueryKey = () => {
+  return [`/api/itinerary`] as const;
+};
+
+export const getGetSavedItinerariesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSavedItineraries>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSavedItineraries>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSavedItinerariesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSavedItineraries>>
+  > = ({ signal }) => getSavedItineraries({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSavedItineraries>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSavedItinerariesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSavedItineraries>>
+>;
+export type GetSavedItinerariesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get saved itineraries for the current user
+ */
+
+export function useGetSavedItineraries<
+  TData = Awaited<ReturnType<typeof getSavedItineraries>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSavedItineraries>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSavedItinerariesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save an itinerary
+ */
+export const getSaveItineraryUrl = () => {
+  return `/api/itinerary`;
+};
+
+export const saveItinerary = async (
+  saveItineraryRequest: SaveItineraryRequest,
+  options?: RequestInit,
+): Promise<SavedItinerary> => {
+  return customFetch<SavedItinerary>(getSaveItineraryUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(saveItineraryRequest),
+  });
+};
+
+export const getSaveItineraryMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveItinerary>>,
+    TError,
+    { data: BodyType<SaveItineraryRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveItinerary>>,
+  TError,
+  { data: BodyType<SaveItineraryRequest> },
+  TContext
+> => {
+  const mutationKey = ["saveItinerary"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveItinerary>>,
+    { data: BodyType<SaveItineraryRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return saveItinerary(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveItineraryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveItinerary>>
+>;
+export type SaveItineraryMutationBody = BodyType<SaveItineraryRequest>;
+export type SaveItineraryMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Save an itinerary
+ */
+export const useSaveItinerary = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveItinerary>>,
+    TError,
+    { data: BodyType<SaveItineraryRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveItinerary>>,
+  TError,
+  { data: BodyType<SaveItineraryRequest> },
+  TContext
+> => {
+  return useMutation(getSaveItineraryMutationOptions(options));
+};
+
+/**
+ * @summary Get a specific saved itinerary
+ */
+export const getGetItineraryUrl = (id: string) => {
+  return `/api/itinerary/${id}`;
+};
+
+export const getItinerary = async (
+  id: string,
+  options?: RequestInit,
+): Promise<SavedItinerary> => {
+  return customFetch<SavedItinerary>(getGetItineraryUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetItineraryQueryKey = (id: string) => {
+  return [`/api/itinerary/${id}`] as const;
+};
+
+export const getGetItineraryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getItinerary>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getItinerary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetItineraryQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getItinerary>>> = ({
+    signal,
+  }) => getItinerary(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getItinerary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetItineraryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getItinerary>>
+>;
+export type GetItineraryQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a specific saved itinerary
+ */
+
+export function useGetItinerary<
+  TData = Awaited<ReturnType<typeof getItinerary>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getItinerary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetItineraryQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Delete a saved itinerary
+ */
+export const getDeleteItineraryUrl = (id: string) => {
+  return `/api/itinerary/${id}`;
+};
+
+export const deleteItinerary = async (
+  id: string,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getDeleteItineraryUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteItineraryMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteItinerary>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteItinerary>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteItinerary"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteItinerary>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteItinerary(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteItineraryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteItinerary>>
+>;
+
+export type DeleteItineraryMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a saved itinerary
+ */
+export const useDeleteItinerary = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteItinerary>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteItinerary>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteItineraryMutationOptions(options));
+};
+
+/**
+ * @summary Get current authenticated user
+ */
+export const getGetCurrentUserUrl = () => {
+  return `/api/auth/me`;
+};
+
+export const getCurrentUser = async (
+  options?: RequestInit,
+): Promise<UserProfile> => {
+  return customFetch<UserProfile>(getGetCurrentUserUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCurrentUserQueryKey = () => {
+  return [`/api/auth/me`] as const;
+};
+
+export const getGetCurrentUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentUser>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCurrentUserQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentUser>>> = ({
+    signal,
+  }) => getCurrentUser({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentUser>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCurrentUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCurrentUser>>
+>;
+export type GetCurrentUserQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get current authenticated user
+ */
+
+export function useGetCurrentUser<
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentUser>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCurrentUserQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

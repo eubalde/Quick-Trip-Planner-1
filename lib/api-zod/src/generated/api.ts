@@ -14,3 +14,372 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Uses AI to generate a day-by-day travel itinerary
+ * @summary Generate a travel itinerary
+ */
+export const generateItineraryBodyTripDaysMax = 3;
+
+export const generateItineraryBodyInterestsMax = 3;
+
+export const GenerateItineraryBody = zod.object({
+  city: zod.string(),
+  tripDays: zod.number().min(1).max(generateItineraryBodyTripDaysMax),
+  interests: zod
+    .array(
+      zod.enum([
+        "history",
+        "art",
+        "food",
+        "nature",
+        "architecture",
+        "nightlife",
+        "shopping",
+        "sports",
+      ]),
+    )
+    .max(generateItineraryBodyInterestsMax),
+  pace: zod.enum(["relaxed", "standard", "packed"]),
+  seed: zod
+    .number()
+    .optional()
+    .describe("Optional seed for reproducible results"),
+});
+
+export const GenerateItineraryResponse = zod.object({
+  city: zod.string(),
+  tripDays: zod.number(),
+  pace: zod.enum(["relaxed", "standard", "packed"]),
+  interests: zod.array(
+    zod.enum([
+      "history",
+      "art",
+      "food",
+      "nature",
+      "architecture",
+      "nightlife",
+      "shopping",
+      "sports",
+    ]),
+  ),
+  days: zod.array(
+    zod.object({
+      day: zod.number(),
+      activities: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          category: zod.enum([
+            "museum",
+            "landmark",
+            "park",
+            "restaurant",
+            "shopping",
+            "entertainment",
+            "cultural",
+            "outdoor",
+            "nightlife",
+            "tour",
+          ]),
+          estimated_duration: zod.number().describe("Duration in minutes"),
+          description: zod.string(),
+          address: zod.string().optional(),
+          lat: zod.number().optional(),
+          lng: zod.number().optional(),
+          score: zod.number().optional(),
+        }),
+      ),
+    }),
+  ),
+  isOptimized: zod.boolean(),
+  fallbackTier: zod.number().nullish(),
+  generatedAt: zod.string(),
+});
+
+/**
+ * @summary Register a new user
+ */
+export const registerUserBodyPasswordMin = 8;
+
+export const RegisterUserBody = zod.object({
+  email: zod.string().email(),
+  password: zod.string().min(registerUserBodyPasswordMin),
+  name: zod.string(),
+});
+
+export const RegisterUserResponse = zod.object({
+  user: zod.object({
+    id: zod.string(),
+    email: zod.string(),
+    name: zod.string(),
+    createdAt: zod.string(),
+  }),
+  token: zod.string(),
+});
+
+/**
+ * @summary Login a user
+ */
+export const LoginUserBody = zod.object({
+  email: zod.string().email(),
+  password: zod.string(),
+});
+
+export const LoginUserResponse = zod.object({
+  user: zod.object({
+    id: zod.string(),
+    email: zod.string(),
+    name: zod.string(),
+    createdAt: zod.string(),
+  }),
+  token: zod.string(),
+});
+
+/**
+ * @summary Logout a user
+ */
+export const LogoutUserResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
+ * @summary Get saved itineraries for the current user
+ */
+export const GetSavedItinerariesResponseItem = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  city: zod.string(),
+  tripDays: zod.number(),
+  pace: zod.enum(["relaxed", "standard", "packed"]),
+  interests: zod.array(
+    zod.enum([
+      "history",
+      "art",
+      "food",
+      "nature",
+      "architecture",
+      "nightlife",
+      "shopping",
+      "sports",
+    ]),
+  ),
+  days: zod.array(
+    zod.object({
+      day: zod.number(),
+      activities: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          category: zod.enum([
+            "museum",
+            "landmark",
+            "park",
+            "restaurant",
+            "shopping",
+            "entertainment",
+            "cultural",
+            "outdoor",
+            "nightlife",
+            "tour",
+          ]),
+          estimated_duration: zod.number().describe("Duration in minutes"),
+          description: zod.string(),
+          address: zod.string().optional(),
+          lat: zod.number().optional(),
+          lng: zod.number().optional(),
+          score: zod.number().optional(),
+        }),
+      ),
+    }),
+  ),
+  isOptimized: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const GetSavedItinerariesResponse = zod.array(
+  GetSavedItinerariesResponseItem,
+);
+
+/**
+ * @summary Save an itinerary
+ */
+export const SaveItineraryBody = zod.object({
+  city: zod.string(),
+  tripDays: zod.number(),
+  pace: zod.enum(["relaxed", "standard", "packed"]),
+  interests: zod.array(
+    zod.enum([
+      "history",
+      "art",
+      "food",
+      "nature",
+      "architecture",
+      "nightlife",
+      "shopping",
+      "sports",
+    ]),
+  ),
+  days: zod.array(
+    zod.object({
+      day: zod.number(),
+      activities: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          category: zod.enum([
+            "museum",
+            "landmark",
+            "park",
+            "restaurant",
+            "shopping",
+            "entertainment",
+            "cultural",
+            "outdoor",
+            "nightlife",
+            "tour",
+          ]),
+          estimated_duration: zod.number().describe("Duration in minutes"),
+          description: zod.string(),
+          address: zod.string().optional(),
+          lat: zod.number().optional(),
+          lng: zod.number().optional(),
+          score: zod.number().optional(),
+        }),
+      ),
+    }),
+  ),
+  isOptimized: zod.boolean(),
+});
+
+export const SaveItineraryResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  city: zod.string(),
+  tripDays: zod.number(),
+  pace: zod.enum(["relaxed", "standard", "packed"]),
+  interests: zod.array(
+    zod.enum([
+      "history",
+      "art",
+      "food",
+      "nature",
+      "architecture",
+      "nightlife",
+      "shopping",
+      "sports",
+    ]),
+  ),
+  days: zod.array(
+    zod.object({
+      day: zod.number(),
+      activities: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          category: zod.enum([
+            "museum",
+            "landmark",
+            "park",
+            "restaurant",
+            "shopping",
+            "entertainment",
+            "cultural",
+            "outdoor",
+            "nightlife",
+            "tour",
+          ]),
+          estimated_duration: zod.number().describe("Duration in minutes"),
+          description: zod.string(),
+          address: zod.string().optional(),
+          lat: zod.number().optional(),
+          lng: zod.number().optional(),
+          score: zod.number().optional(),
+        }),
+      ),
+    }),
+  ),
+  isOptimized: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Get a specific saved itinerary
+ */
+export const GetItineraryParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetItineraryResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  city: zod.string(),
+  tripDays: zod.number(),
+  pace: zod.enum(["relaxed", "standard", "packed"]),
+  interests: zod.array(
+    zod.enum([
+      "history",
+      "art",
+      "food",
+      "nature",
+      "architecture",
+      "nightlife",
+      "shopping",
+      "sports",
+    ]),
+  ),
+  days: zod.array(
+    zod.object({
+      day: zod.number(),
+      activities: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          category: zod.enum([
+            "museum",
+            "landmark",
+            "park",
+            "restaurant",
+            "shopping",
+            "entertainment",
+            "cultural",
+            "outdoor",
+            "nightlife",
+            "tour",
+          ]),
+          estimated_duration: zod.number().describe("Duration in minutes"),
+          description: zod.string(),
+          address: zod.string().optional(),
+          lat: zod.number().optional(),
+          lng: zod.number().optional(),
+          score: zod.number().optional(),
+        }),
+      ),
+    }),
+  ),
+  isOptimized: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Delete a saved itinerary
+ */
+export const DeleteItineraryParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DeleteItineraryResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
+ * @summary Get current authenticated user
+ */
+export const GetCurrentUserResponse = zod.object({
+  id: zod.string(),
+  email: zod.string(),
+  name: zod.string(),
+  createdAt: zod.string(),
+});
