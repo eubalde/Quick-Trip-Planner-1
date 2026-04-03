@@ -8,6 +8,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -35,6 +36,199 @@ function refCode(city: string, day: number, idx: number): string {
   return `${city.slice(0, 3).toUpperCase()}-D${day}-V${idx + 1}`;
 }
 
+// ─── Time Picker Modal ─────────────────────────────────────────────────────────
+
+interface TimePickerProps {
+  visible: boolean;
+  value: string; // "HH:MM"
+  onConfirm: (time: string) => void;
+  onClose: () => void;
+  colors: ReturnType<typeof useColors>;
+}
+
+function TimePicker({ visible, value, onConfirm, onClose, colors }: TimePickerProps) {
+  const [h, setH] = useState(() => parseInt(value.split(":")[0] ?? "9", 10));
+  const [m, setM] = useState(() => {
+    const raw = parseInt(value.split(":")[1] ?? "0", 10);
+    // snap to nearest 15
+    return Math.round(raw / 15) * 15 % 60;
+  });
+
+  const clampH = (n: number) => Math.min(22, Math.max(6, n));
+  const cycleMins = (n: number) => ((n % 60) + 60) % 60;
+
+  const formatted = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  const ampm = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const display12 = `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+
+  const s = tpStyles;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={s.overlay}>
+        <View style={[s.sheet, { backgroundColor: "#FFFBEB", borderColor: colors.border, shadowColor: colors.border }]}>
+          {/* Header */}
+          <View style={[s.sheetHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[s.sheetTitle, { color: colors.foreground }]}>Set Time</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Feather name="x" size={18} color={colors.foreground} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Big time display */}
+          <Text style={[s.bigTime, { color: colors.foreground }]}>{display12}</Text>
+
+          {/* Pickers */}
+          <View style={s.pickersRow}>
+            {/* Hour column */}
+            <View style={s.pickerCol}>
+              <Text style={[s.pickerLabel, { color: colors.mutedForeground }]}>HOUR</Text>
+              <TouchableOpacity
+                style={[s.arrowBtn, { borderColor: colors.border }]}
+                onPress={() => { Haptics.selectionAsync(); setH(clampH(h + 1)); }}
+              >
+                <Feather name="chevron-up" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+              <View style={[s.valueBox, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                <Text style={[s.valueText, { color: colors.foreground }]}>{String(h).padStart(2, "0")}</Text>
+              </View>
+              <TouchableOpacity
+                style={[s.arrowBtn, { borderColor: colors.border }]}
+                onPress={() => { Haptics.selectionAsync(); setH(clampH(h - 1)); }}
+              >
+                <Feather name="chevron-down" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[s.colon, { color: colors.foreground }]}>:</Text>
+
+            {/* Minute column */}
+            <View style={s.pickerCol}>
+              <Text style={[s.pickerLabel, { color: colors.mutedForeground }]}>MIN</Text>
+              <TouchableOpacity
+                style={[s.arrowBtn, { borderColor: colors.border }]}
+                onPress={() => { Haptics.selectionAsync(); setM(cycleMins(m + 15)); }}
+              >
+                <Feather name="chevron-up" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+              <View style={[s.valueBox, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                <Text style={[s.valueText, { color: colors.foreground }]}>{String(m).padStart(2, "0")}</Text>
+              </View>
+              <TouchableOpacity
+                style={[s.arrowBtn, { borderColor: colors.border }]}
+                onPress={() => { Haptics.selectionAsync(); setM(cycleMins(m - 15)); }}
+              >
+                <Feather name="chevron-down" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Confirm */}
+          <TouchableOpacity
+            style={[s.confirmBtn, { backgroundColor: colors.primary, borderColor: colors.border, shadowColor: colors.border }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onConfirm(formatted); }}
+          >
+            <Feather name="check" size={14} color="#fff" style={{ marginRight: 6 }} />
+            <Text style={s.confirmText}>CONFIRM TIME</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const tpStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(69,26,3,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  sheet: {
+    width: "100%",
+    maxWidth: 320,
+    borderWidth: 2,
+    borderRadius: 4,
+    padding: 20,
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 8,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 2,
+    paddingBottom: 12,
+    marginBottom: 16,
+  },
+  sheetTitle: { fontFamily: "SpaceMono_700Bold", fontSize: 11, letterSpacing: 2 },
+  bigTime: {
+    fontFamily: "DMSerifDisplay_400Regular",
+    fontSize: 48,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  pickersRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    marginBottom: 20,
+  },
+  pickerCol: { alignItems: "center", gap: 6 },
+  pickerLabel: { fontFamily: "SpaceMono_400Regular", fontSize: 9, letterSpacing: 2 },
+  arrowBtn: {
+    width: 44,
+    height: 36,
+    borderWidth: 2,
+    borderRadius: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  valueBox: {
+    width: 72,
+    height: 52,
+    borderWidth: 2,
+    borderRadius: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  valueText: { fontFamily: "DMSerifDisplay_400Regular", fontSize: 30 },
+  colon: { fontFamily: "DMSerifDisplay_400Regular", fontSize: 36, marginTop: 20 },
+  confirmBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderWidth: 2,
+    borderRadius: 4,
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 4,
+  },
+  confirmText: { fontFamily: "SpaceMono_700Bold", fontSize: 11, color: "#fff", letterSpacing: 2 },
+});
+
+// ─── Activity Card ─────────────────────────────────────────────────────────────
+
+interface ActivityCardProps {
+  activity: Activity;
+  day: number;
+  idx: number;
+  total: number;
+  city: string;
+  onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onTimePress: () => void;
+  colors: ReturnType<typeof useColors>;
+}
+
 function ActivityCard({
   activity,
   day,
@@ -44,34 +238,38 @@ function ActivityCard({
   onRemove,
   onMoveUp,
   onMoveDown,
+  onTimePress,
   colors,
-}: {
-  activity: Activity;
-  day: number;
-  idx: number;
-  total: number;
-  city: string;
-  onRemove: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  colors: ReturnType<typeof useColors>;
-}) {
+}: ActivityCardProps) {
   const tag = CATEGORY_TAGS[activity.category] ?? "#MISC";
   const ref = refCode(city, day, idx);
-  const hours = Math.floor(idx * 2.5 + 9);
-  const mins = idx % 2 === 0 ? "00" : "30";
-  const timeStr = `${String(hours).padStart(2, "0")}:${mins}`;
+  const timeStr = activity.time ?? "09:00";
+  const [hRaw, mRaw] = timeStr.split(":").map(Number);
+  const h = hRaw ?? 9;
+  const m = mRaw ?? 0;
+  const ampm = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const display = `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 
   return (
     <View style={[cardStyles.card, { borderColor: colors.border, shadowColor: colors.border }]}>
-      {/* STAMP */}
+      {/* Stamp */}
       <View style={[cardStyles.stamp, { backgroundColor: colors.teal, borderColor: colors.border }]}>
-        <Text style={cardStyles.stampText}>{timeStr}</Text>
+        <Text style={cardStyles.stampText}>{String(h12).padStart(2, "0")}</Text>
+        <Text style={cardStyles.stampAmpm}>{ampm}</Text>
       </View>
 
       <View style={cardStyles.row}>
         <View style={cardStyles.timeCol}>
-          <Text style={[cardStyles.time, { color: colors.primary }]}>{timeStr}</Text>
+          {/* Tappable time */}
+          <TouchableOpacity
+            onPress={onTimePress}
+            style={[cardStyles.timeBtn, { borderColor: colors.primary, backgroundColor: "#FEF2E8" }]}
+            activeOpacity={0.75}
+          >
+            <Text style={[cardStyles.time, { color: colors.primary }]}>{display}</Text>
+            <Feather name="edit-2" size={9} color={colors.primary} style={{ marginTop: 2 }} />
+          </TouchableOpacity>
           <Text style={[cardStyles.ref, { color: colors.mutedForeground }]}>{ref}</Text>
         </View>
         <View style={{ flex: 1 }}>
@@ -104,7 +302,7 @@ function ActivityCard({
         </View>
       </View>
 
-      {/* ACTIONS */}
+      {/* Actions */}
       <View style={[cardStyles.actions, { borderTopColor: colors.border }]}>
         <TouchableOpacity
           style={[cardStyles.actionBtn, { opacity: idx === 0 ? 0.25 : 1 }]}
@@ -158,11 +356,19 @@ const cardStyles = StyleSheet.create({
     transform: [{ rotate: "12deg" }],
     zIndex: 1,
   },
-  stampText: { fontFamily: "SpaceMono_700Bold", fontSize: 8, color: "#fff", textAlign: "center" },
-  row: { flexDirection: "row", gap: 12, padding: 14 },
-  timeCol: { width: 52 },
-  time: { fontFamily: "SpaceMono_700Bold", fontSize: 13 },
-  ref: { fontFamily: "SpaceMono_400Regular", fontSize: 8, marginTop: 4 },
+  stampText: { fontFamily: "SpaceMono_700Bold", fontSize: 11, color: "#fff" },
+  stampAmpm: { fontFamily: "SpaceMono_400Regular", fontSize: 7, color: "rgba(255,255,255,0.8)" },
+  row: { flexDirection: "row", gap: 12, padding: 14, paddingRight: 70 },
+  timeCol: { width: 72, gap: 4 },
+  timeBtn: {
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 4,
+    alignItems: "center",
+  },
+  time: { fontFamily: "SpaceMono_700Bold", fontSize: 11 },
+  ref: { fontFamily: "SpaceMono_400Regular", fontSize: 7, textAlign: "center" },
   nameRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, marginBottom: 6, flexWrap: "wrap" },
   name: { fontFamily: "DMSerifDisplay_400Regular", fontSize: 17, flex: 1 },
   tagPill: { borderWidth: 2, borderRadius: 20, paddingHorizontal: 7, paddingVertical: 2, alignSelf: "flex-start" },
@@ -176,16 +382,37 @@ const cardStyles = StyleSheet.create({
   actionLabel: { fontFamily: "SpaceMono_400Regular", fontSize: 8 },
 });
 
+// ─── Main Screen ───────────────────────────────────────────────────────────────
+
 export default function ItineraryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { currentItinerary, removeActivity, reorderActivity, hasUnsavedChanges, tripInput, setCurrentItinerary } = useItinerary();
+  const { currentItinerary, removeActivity, reorderActivity, updateActivityTime, hasUnsavedChanges, tripInput, setCurrentItinerary } = useItinerary();
   const { user, token } = useAuth();
+
   const [isSaving, setIsSaving] = useState(false);
   const [isRegen, setIsRegen] = useState(false);
 
+  // Time picker state
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerTarget, setPickerTarget] = useState<{ day: number; activityId: string; time: string } | null>(null);
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+
+  const openTimePicker = (day: number, activityId: string, time: string) => {
+    Haptics.selectionAsync();
+    setPickerTarget({ day, activityId, time });
+    setPickerVisible(true);
+  };
+
+  const handleTimeConfirm = (time: string) => {
+    if (pickerTarget) {
+      updateActivityTime(pickerTarget.day, pickerTarget.activityId, time);
+    }
+    setPickerVisible(false);
+    setPickerTarget(null);
+  };
 
   const handleBack = () => {
     if (hasUnsavedChanges) {
@@ -305,7 +532,7 @@ export default function ItineraryScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[s.scroll, { paddingBottom: Platform.OS === "web" ? 40 : 40 }]}
+        contentContainerStyle={[s.scroll, { paddingBottom: 40 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* HERO */}
@@ -374,12 +601,24 @@ export default function ItineraryScreen() {
                   onRemove={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeActivity(day.day, activity.id); }}
                   onMoveUp={() => { Haptics.selectionAsync(); reorderActivity(day.day, idx, idx - 1); }}
                   onMoveDown={() => { Haptics.selectionAsync(); reorderActivity(day.day, idx, idx + 1); }}
+                  onTimePress={() => openTimePicker(day.day, activity.id, activity.time ?? "09:00")}
                 />
               ))
             )}
           </View>
         ))}
       </ScrollView>
+
+      {/* TIME PICKER MODAL */}
+      {pickerTarget && (
+        <TimePicker
+          visible={pickerVisible}
+          value={pickerTarget.time}
+          onConfirm={handleTimeConfirm}
+          onClose={() => { setPickerVisible(false); setPickerTarget(null); }}
+          colors={colors}
+        />
+      )}
     </View>
   );
 }
@@ -418,7 +657,6 @@ function makeItinStyles(colors: ReturnType<typeof useColors>) {
     saveBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 10, color: "#fff", letterSpacing: 1 },
     scroll: { paddingHorizontal: 20 },
     hero: { paddingVertical: 20 },
-    sysLine: { fontFamily: "SpaceMono_400Regular", fontSize: 9, marginBottom: 4 },
     heroCity: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 44, marginBottom: 12 },
     heroBadges: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
     badge: { borderWidth: 2, borderRadius: 4, paddingHorizontal: 10, paddingVertical: 5 },
