@@ -120,6 +120,7 @@ export default function PlanScreen() {
   const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedCity, setSelectedCity] = useState<CitySuggestion | null>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -128,6 +129,7 @@ export default function PlanScreen() {
   // Debounced city search
   const onCityChange = useCallback((text: string) => {
     setCity(text);
+    setSelectedCity(null);
     setShowSuggestions(true);
 
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
@@ -154,6 +156,7 @@ export default function PlanScreen() {
   const selectSuggestion = (s: CitySuggestion) => {
     Haptics.selectionAsync();
     setCity(s.city);
+    setSelectedCity(s);
     setSuggestions([]);
     setShowSuggestions(false);
   };
@@ -246,11 +249,32 @@ export default function PlanScreen() {
               />
               {isFetchingSuggestions && <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 6 }} />}
               {!isFetchingSuggestions && city.length > 0 && (
-                <TouchableOpacity onPress={() => { setCity(""); setSuggestions([]); setShowSuggestions(false); }}>
+                <TouchableOpacity onPress={() => { setCity(""); setSuggestions([]); setShowSuggestions(false); setSelectedCity(null); }}>
                   <Feather name="x" size={14} color={colors.mutedForeground} />
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* SELECTED CITY INFO */}
+            {selectedCity && (
+              <View style={[s.selectedInfo, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                <View style={[s.selectedIconBox, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+                  <Feather name="check" size={11} color={colors.foreground} />
+                </View>
+                <View style={s.selectedText}>
+                  {selectedCity.region ? (
+                    <Text style={[s.selectedMeta, { color: colors.mutedForeground }]}>
+                      {selectedCity.region}
+                    </Text>
+                  ) : null}
+                  {selectedCity.country ? (
+                    <Text style={[s.selectedCountry, { color: colors.foreground }]}>
+                      {selectedCity.country}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            )}
           </View>
 
           {/* SUGGESTIONS DROPDOWN */}
@@ -460,6 +484,29 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       backgroundColor: colors.background,
     },
     input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 16, color: "#451A03" },
+
+    // Selected city info
+    selectedInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginTop: 10,
+      borderWidth: 2,
+      borderRadius: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    selectedIconBox: {
+      width: 22,
+      height: 22,
+      borderRadius: 4,
+      borderWidth: 2,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    selectedText: { flex: 1 },
+    selectedMeta: { fontFamily: "SpaceMono_400Regular", fontSize: 10 },
+    selectedCountry: { fontFamily: "SpaceMono_700Bold", fontSize: 11, marginTop: 1 },
 
     // Dropdown
     dropdown: {
