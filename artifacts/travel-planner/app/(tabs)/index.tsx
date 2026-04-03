@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -43,6 +43,66 @@ const PROGRESS_LABELS = [
   "Finalising itinerary...",
 ];
 
+// ─── Nominatim types ───────────────────────────────────────────────────────────
+
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  address: {
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    county?: string;
+    state?: string;
+    region?: string;
+    country?: string;
+    country_code?: string;
+  };
+}
+
+interface CitySuggestion {
+  placeId: number;
+  city: string;
+  region: string; // state / county
+  country: string;
+  label: string;  // what gets filled into the input
+}
+
+function parseSuggestion(r: NominatimResult): CitySuggestion {
+  const a = r.address;
+  const city = a.city ?? a.town ?? a.municipality ?? a.village ?? "";
+  const region = a.state ?? a.region ?? a.county ?? "";
+  const country = a.country ?? "";
+  const label = [city, region, country].filter(Boolean).join(", ");
+  return { placeId: r.place_id, city, region, country, label };
+}
+
+async function fetchCitySuggestions(query: string): Promise<CitySuggestion[]> {
+  if (query.trim().length < 2) return [];
+  const url =
+    `https://nominatim.openstreetmap.org/search?` +
+    `q=${encodeURIComponent(query)}&format=json&addressdetails=1` +
+    `&limit=6&featuretype=city&dedupe=1`;
+  const res = await fetch(url, {
+    headers: { "Accept-Language": "en", "User-Agent": "VoyagerTravelApp/1.0" },
+  });
+  if (!res.ok) return [];
+  const data: NominatimResult[] = await res.json();
+  // Deduplicate by city+country
+  const seen = new Set<string>();
+  const results: CitySuggestion[] = [];
+  for (const r of data) {
+    const s = parseSuggestion(r);
+    if (!s.city) continue;
+    const key = `${s.city.toLowerCase()}|${s.country.toLowerCase()}`;
+    if (!seen.has(key)) { seen.add(key); results.push(s); }
+  }
+  return results;
+}
+
+// ─── Screen ────────────────────────────────────────────────────────────────────
+
 export default function PlanScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -56,8 +116,50 @@ export default function PlanScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressLabel, setProgressLabel] = useState("");
 
+  // Autocomplete
+  const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPad = Platform.OS === "web" ? 100 : 100;
+  const bottomPad = 100;
+
+  // Debounced city search
+  const onCityChange = useCallback((text: string) => {
+    setCity(text);
+    setShowSuggestions(true);
+
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+    if (text.trim().length < 2) {
+      setSuggestions([]);
+      setIsFetchingSuggestions(false);
+      return;
+    }
+
+    setIsFetchingSuggestions(true);
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const results = await fetchCitySuggestions(text);
+        setSuggestions(results);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setIsFetchingSuggestions(false);
+      }
+    }, 350);
+  }, []);
+
+  const selectSuggestion = (s: CitySuggestion) => {
+    Haptics.selectionAsync();
+    setCity(s.city);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  // Cleanup debounce on unmount
+  useEffect(() => () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); }, []);
 
   const toggleInterest = (v: UserInterest) => {
     Haptics.selectionAsync();
@@ -67,14 +169,10 @@ export default function PlanScreen() {
   };
 
   const handleGenerate = async () => {
-    if (!city.trim()) {
-      Alert.alert("Missing City", "Enter a destination to begin.");
-      return;
-    }
-    if (interests.length === 0) {
-      Alert.alert("No Interests", "Select at least one interest tag.");
-      return;
-    }
+    setSuggestions([]);
+    setShowSuggestions(false);
+    if (!city.trim()) { Alert.alert("Missing City", "Enter a destination to begin."); return; }
+    if (interests.length === 0) { Alert.alert("No Interests", "Select at least one interest tag."); return; }
 
     setIsGenerating(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -83,9 +181,7 @@ export default function PlanScreen() {
     setProgressLabel(PROGRESS_LABELS[0]!);
     const labelTimer = setInterval(() => {
       step++;
-      if (step < PROGRESS_LABELS.length) {
-        setProgressLabel(PROGRESS_LABELS[step]!);
-      }
+      if (step < PROGRESS_LABELS.length) setProgressLabel(PROGRESS_LABELS[step]!);
     }, 3500);
 
     try {
@@ -96,10 +192,7 @@ export default function PlanScreen() {
         body: JSON.stringify({ city: city.trim(), tripDays, interests, pace }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        Alert.alert("Error", data.error ?? "Generation failed");
-        return;
-      }
+      if (!res.ok) { Alert.alert("Error", data.error ?? "Generation failed"); return; }
       setCurrentItinerary(data);
       setTripInput({ city: city.trim(), tripDays, interests, pace });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -114,6 +207,7 @@ export default function PlanScreen() {
   };
 
   const s = makeStyles(colors);
+  const hasSuggestions = showSuggestions && (isFetchingSuggestions || suggestions.length > 0);
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
@@ -133,20 +227,69 @@ export default function PlanScreen() {
         </View>
 
         {/* CITY INPUT */}
-        <View style={[s.card, { shadowColor: colors.border }]}>
-          <Text style={[s.cardLabel, { color: colors.mutedForeground }]}>TARGET CITY</Text>
-          <View style={[s.inputRow, { borderColor: colors.border }]}>
-            <Feather name="map-pin" size={16} color={colors.primary} style={{ marginRight: 8 }} />
-            <TextInput
-              style={[s.input, { color: colors.foreground }]}
-              placeholder="e.g. Kyoto, Lisbon, Cape Town"
-              placeholderTextColor={colors.mutedForeground}
-              value={city}
-              onChangeText={setCity}
-              autoCapitalize="words"
-              returnKeyType="done"
-            />
+        <View style={s.citySection}>
+          <View style={[s.card, { shadowColor: colors.border }]}>
+            <Text style={[s.cardLabel, { color: colors.mutedForeground }]}>TARGET CITY</Text>
+            <View style={[s.inputRow, { borderColor: hasSuggestions ? colors.primary : colors.border }]}>
+              <Feather name="map-pin" size={16} color={hasSuggestions ? colors.primary : colors.mutedForeground} style={{ marginRight: 8 }} />
+              <TextInput
+                style={[s.input, { color: colors.foreground }]}
+                placeholder="e.g. Kyoto, Lisbon, Cape Town"
+                placeholderTextColor={colors.mutedForeground}
+                value={city}
+                onChangeText={onCityChange}
+                onFocus={() => city.length >= 2 && setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                autoCapitalize="words"
+                returnKeyType="done"
+                onSubmitEditing={() => setShowSuggestions(false)}
+              />
+              {isFetchingSuggestions && <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 6 }} />}
+              {!isFetchingSuggestions && city.length > 0 && (
+                <TouchableOpacity onPress={() => { setCity(""); setSuggestions([]); setShowSuggestions(false); }}>
+                  <Feather name="x" size={14} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
+
+          {/* SUGGESTIONS DROPDOWN */}
+          {hasSuggestions && (
+            <View style={[s.dropdown, { borderColor: colors.border, shadowColor: colors.border }]}>
+              {isFetchingSuggestions && suggestions.length === 0 ? (
+                <View style={s.dropdownLoading}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[s.dropdownLoadingText, { color: colors.mutedForeground }]}>Searching cities...</Text>
+                </View>
+              ) : (
+                suggestions.map((s_item, idx) => (
+                  <TouchableOpacity
+                    key={s_item.placeId}
+                    style={[
+                      s.dropdownItem,
+                      { borderBottomColor: colors.border },
+                      idx === suggestions.length - 1 && { borderBottomWidth: 0 },
+                    ]}
+                    onPress={() => selectSuggestion(s_item)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[s.dropdownIcon, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+                      <Feather name="map-pin" size={10} color={colors.foreground} />
+                    </View>
+                    <View style={s.dropdownText}>
+                      <Text style={[s.dropdownCity, { color: colors.foreground }]}>{s_item.city}</Text>
+                      {(s_item.region || s_item.country) ? (
+                        <Text style={[s.dropdownMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+                          {[s_item.region, s_item.country].filter(Boolean).join(" · ")}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          )}
         </View>
 
         {/* DURATION */}
@@ -284,6 +427,10 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     },
     brandName: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 40, color: "#451A03" },
     tagline: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 14, textAlign: "right", lineHeight: 22 },
+
+    // City section — no overflow clip so dropdown can overlap
+    citySection: { zIndex: 50, marginBottom: 14 },
+
     card: {
       backgroundColor: "#FFFBEB",
       borderWidth: 2,
@@ -313,6 +460,48 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       backgroundColor: colors.background,
     },
     input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 16, color: "#451A03" },
+
+    // Dropdown
+    dropdown: {
+      borderWidth: 2,
+      borderTopWidth: 0,
+      borderRadius: 4,
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      backgroundColor: "#FFFBEB",
+      shadowOffset: { width: 4, height: 4 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 8,
+      overflow: "hidden",
+    },
+    dropdownLoading: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      padding: 14,
+    },
+    dropdownLoadingText: { fontFamily: "SpaceMono_400Regular", fontSize: 10 },
+    dropdownItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+    },
+    dropdownIcon: {
+      width: 24,
+      height: 24,
+      borderRadius: 4,
+      borderWidth: 2,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    dropdownText: { flex: 1 },
+    dropdownCity: { fontFamily: "DMSerifDisplay_400Regular", fontSize: 16 },
+    dropdownMeta: { fontFamily: "SpaceMono_400Regular", fontSize: 9, marginTop: 1 },
+
     dayRow: { flexDirection: "row", gap: 10 },
     dayBtn: {
       flex: 1,
