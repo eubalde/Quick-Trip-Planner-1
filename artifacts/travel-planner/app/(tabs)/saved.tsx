@@ -101,9 +101,6 @@ export default function SavedScreen() {
         <View style={s.guestState}>
           <Feather name="lock" size={36} color={colors.mutedForeground} />
           <Text style={[s.emptyTitle, { color: colors.foreground }]}>Sign in to view saved trips</Text>
-          <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 10, textAlign: "center", marginBottom: 20 }]}>
-            // AUTH_REQUIRED: PERSISTENCE_DISABLED
-          </Text>
           <TouchableOpacity
             style={[s.authBtn, { backgroundColor: colors.primary, borderColor: colors.border, shadowColor: colors.border }]}
             onPress={() => router.push("/auth")}
@@ -135,9 +132,6 @@ export default function SavedScreen() {
             <View style={s.guestState}>
               <Feather name="inbox" size={36} color={colors.mutedForeground} />
               <Text style={[s.emptyTitle, { color: colors.foreground }]}>No saved trips yet</Text>
-              <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 9, textAlign: "center" }]}>
-                // COLLECTION_EMPTY: GENERATE_FIRST
-              </Text>
             </View>
           ) : null
         }
@@ -153,9 +147,6 @@ export default function SavedScreen() {
               <Text style={s.stampYear}>{new Date(item.createdAt).getFullYear()}</Text>
             </View>
 
-            <Text style={[s.mono, { color: colors.primary, fontSize: 9, marginBottom: 4 }]}>
-              // DESTINATION_LOG
-            </Text>
             <Text style={[s.cardCity, { color: colors.foreground }]}>{item.city}.</Text>
 
             <View style={s.cardBadges}>

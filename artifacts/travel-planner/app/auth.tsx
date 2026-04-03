@@ -69,9 +69,6 @@ export default function AuthScreen() {
         </View>
 
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <Text style={[s.sysLine, { color: colors.primary }]}>
-            {isRegister ? "// NEW_EXPEDITION_PROFILE" : "// SESSION_RESTORE"}
-          </Text>
           <Text style={s.brandName}>Voyager.</Text>
           <Text style={[s.subtitle, { color: colors.mutedForeground }]}>
             {isRegister
@@ -151,7 +148,7 @@ export default function AuthScreen() {
 
             <TouchableOpacity style={s.switchMode} onPress={() => { Haptics.selectionAsync(); setIsRegister(!isRegister); }}>
               <Text style={[s.switchText, { color: colors.mutedForeground }]}>
-                {isRegister ? "// ALREADY_REGISTERED → " : "// NEW_EXPLORER → "}
+                {isRegister ? "Already registered? " : "New explorer? "}
                 <Text style={{ color: colors.primary, fontFamily: "SpaceMono_700Bold" }}>
                   {isRegister ? "SIGN IN" : "CREATE ACCOUNT"}
                 </Text>

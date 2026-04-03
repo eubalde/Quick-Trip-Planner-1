@@ -51,9 +51,6 @@ export default function ProfileScreen() {
             <Feather name="user" size={40} color={colors.mutedForeground} />
           </View>
           <Text style={[s.guestHeadline, { color: colors.foreground }]}>Anonymous Explorer</Text>
-          <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 9, textAlign: "center" }]}>
-            // AUTH_STATE: ANONYMOUS_SESSION
-          </Text>
           <TouchableOpacity
             style={[s.primaryBtn, { backgroundColor: colors.primary, borderColor: colors.border, shadowColor: colors.border }]}
             onPress={() => router.push("/auth")}
@@ -84,7 +81,6 @@ export default function ProfileScreen() {
           <View style={[s.avatarBox, { backgroundColor: colors.primary, borderColor: colors.border }]}>
             <Text style={s.avatarText}>{initials}</Text>
           </View>
-          <Text style={[s.sysLine, { color: colors.primary }]}>// SESSION_ACTIVE: VERIFIED</Text>
           <Text style={[s.heroName, { color: colors.foreground }]}>{user.name}.</Text>
           <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 10 }]}>{user.email}</Text>
           <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 9, marginTop: 4 }]}>
@@ -94,9 +90,6 @@ export default function ProfileScreen() {
 
         <View style={{ paddingHorizontal: 20 }}>
           <View style={[s.infoCard, { borderColor: colors.border, shadowColor: colors.border }]}>
-            <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 9, marginBottom: 12 }]}>
-              // ACCOUNT_DATA
-            </Text>
             <View style={[s.infoRow, { borderBottomColor: colors.border }]}>
               <Text style={[s.infoLabel, { color: colors.mutedForeground }]}>EMAIL</Text>
               <Text style={[s.infoVal, { color: colors.foreground }]}>{user.email}</Text>
