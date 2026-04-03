@@ -241,6 +241,7 @@ function ActivityCard({
   onTimePress,
   colors,
 }: ActivityCardProps) {
+  const [expanded, setExpanded] = useState(false);
   const tag = CATEGORY_TAGS[activity.category] ?? "#MISC";
   const ref = refCode(city, day, idx);
   const timeStr = activity.time ?? "09:00";
@@ -275,9 +276,17 @@ function ActivityCard({
               <Text style={[cardStyles.tagText, { color: colors.foreground }]}>{tag}</Text>
             </View>
           </View>
-          <Text style={[cardStyles.desc, { color: colors.mutedForeground }]} numberOfLines={2}>
-            {activity.description}
-          </Text>
+          <TouchableOpacity
+            onPress={() => { Haptics.selectionAsync(); setExpanded((e) => !e); }}
+            activeOpacity={0.8}
+          >
+            <Text style={[cardStyles.desc, { color: colors.mutedForeground }]} numberOfLines={expanded ? undefined : 2}>
+              {activity.description}
+            </Text>
+            <Text style={[cardStyles.expandToggle, { color: colors.primary }]}>
+              {expanded ? "SHOW LESS ↑" : "READ MORE ↓"}
+            </Text>
+          </TouchableOpacity>
           <View style={cardStyles.metaRow}>
             <Feather name="clock" size={11} color={colors.mutedForeground} />
             <Text style={[cardStyles.metaMono, { color: colors.mutedForeground }]}>
@@ -352,7 +361,8 @@ const cardStyles = StyleSheet.create({
   name: { fontFamily: "DMSerifDisplay_400Regular", fontSize: 17, flex: 1 },
   tagPill: { borderWidth: 2, borderRadius: 20, paddingHorizontal: 7, paddingVertical: 2, alignSelf: "flex-start" },
   tagText: { fontFamily: "SpaceMono_700Bold", fontSize: 8 },
-  desc: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18, marginBottom: 8 },
+  desc: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18, marginBottom: 4 },
+  expandToggle: { fontFamily: "SpaceMono_700Bold", fontSize: 9, letterSpacing: 1, marginBottom: 8 },
   metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
   metaMono: { fontFamily: "SpaceMono_400Regular", fontSize: 9, marginLeft: 3 },
   actions: { flexDirection: "row", borderTopWidth: 2 },
