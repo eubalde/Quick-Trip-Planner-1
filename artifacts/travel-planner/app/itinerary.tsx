@@ -253,12 +253,6 @@ function ActivityCard({
 
   return (
     <View style={[cardStyles.card, { borderColor: colors.border, shadowColor: colors.border }]}>
-      {/* Stamp */}
-      <View style={[cardStyles.stamp, { backgroundColor: colors.teal, borderColor: colors.border }]}>
-        <Text style={cardStyles.stampText}>{String(h12).padStart(2, "0")}</Text>
-        <Text style={cardStyles.stampAmpm}>{ampm}</Text>
-      </View>
-
       <View style={cardStyles.row}>
         <View style={cardStyles.timeCol}>
           {/* Tappable time */}
@@ -343,22 +337,7 @@ const cardStyles = StyleSheet.create({
     shadowRadius: 0,
     elevation: 4,
   },
-  stamp: {
-    position: "absolute",
-    top: -6,
-    right: 12,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-    transform: [{ rotate: "12deg" }],
-    zIndex: 1,
-  },
-  stampText: { fontFamily: "SpaceMono_700Bold", fontSize: 11, color: "#fff" },
-  stampAmpm: { fontFamily: "SpaceMono_400Regular", fontSize: 7, color: "rgba(255,255,255,0.8)" },
-  row: { flexDirection: "row", gap: 12, padding: 14, paddingRight: 70 },
+  row: { flexDirection: "row", gap: 12, padding: 14 },
   timeCol: { width: 72, gap: 4 },
   timeBtn: {
     borderWidth: 1,
@@ -544,11 +523,11 @@ export default function ItineraryScreen() {
                 {currentItinerary.tripDays} {currentItinerary.tripDays === 1 ? "DAY" : "DAYS"}
               </Text>
             </View>
-            <View style={[s.badge, { borderColor: colors.border, backgroundColor: currentItinerary.isOptimized ? colors.teal : "#FCD34D" }]}>
-              <Text style={[s.badgeMono, { color: currentItinerary.isOptimized ? "#fff" : colors.foreground }]}>
-                {currentItinerary.isOptimized ? "● OPTIMISED" : "⚠ EDITED"}
-              </Text>
-            </View>
+            {!currentItinerary.isOptimized && (
+              <View style={[s.badge, { borderColor: colors.border, backgroundColor: "#FCD34D" }]}>
+                <Text style={[s.badgeMono, { color: colors.foreground }]}>⚠ EDITED</Text>
+              </View>
+            )}
             <View style={[s.badge, { borderColor: colors.border, backgroundColor: colors.card }]}>
               <Text style={[s.badgeMono, { color: colors.foreground }]}>
                 {allActivities.length} STOPS · {Math.round(totalMins / 60)}H
