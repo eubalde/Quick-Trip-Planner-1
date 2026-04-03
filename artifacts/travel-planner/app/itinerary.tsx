@@ -310,7 +310,6 @@ export default function ItineraryScreen() {
       >
         {/* HERO */}
         <View style={s.hero}>
-          <Text style={[s.sysLine, { color: colors.primary }]}>// ITINERARY_COMPILED</Text>
           <Text style={[s.heroCity, { color: colors.foreground }]}>{currentItinerary.city}.</Text>
           <View style={s.heroBadges}>
             <View style={[s.badge, { borderColor: colors.border, backgroundColor: colors.accent }]}>

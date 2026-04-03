@@ -125,7 +125,6 @@ export default function PlanScreen() {
         {/* HEADER */}
         <View style={[s.header, { borderBottomColor: colors.border }]}>
           <View>
-            <Text style={[s.sysLabel, { color: colors.primary }]}>// SYSTEM_STATUS: READY</Text>
             <Text style={s.brandName}>Voyager.</Text>
           </View>
           <Text style={[s.tagline, { color: colors.mutedForeground }]}>
@@ -253,9 +252,6 @@ export default function PlanScreen() {
         {/* GENERATE BUTTON */}
         {isGenerating ? (
           <View style={[s.progressCard, { borderColor: colors.border, backgroundColor: colors.primary }]}>
-            <Text style={[s.mono, { color: "rgba(255,255,255,0.6)", fontSize: 9, marginBottom: 8 }]}>
-              COMPILING_DETERMINISTIC_CLUSTERS...
-            </Text>
             <ActivityIndicator color="#fff" style={{ marginBottom: 10 }} />
             <Text style={[s.mono, { color: "#fff", fontSize: 11 }]}>{progressLabel}</Text>
           </View>
@@ -286,7 +282,6 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       paddingBottom: 20,
       marginBottom: 20,
     },
-    sysLabel: { fontFamily: "SpaceMono_400Regular", fontSize: 9, marginBottom: 4, textTransform: "uppercase" },
     brandName: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 40, color: "#451A03" },
     tagline: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 14, textAlign: "right", lineHeight: 22 },
     card: {
