@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -214,6 +216,258 @@ const tpStyles = StyleSheet.create({
   confirmText: { fontFamily: "SpaceMono_700Bold", fontSize: 11, color: "#fff", letterSpacing: 2 },
 });
 
+// ─── Add Event Modal ───────────────────────────────────────────────────────────
+
+const ALL_CATEGORIES: { value: string; label: string }[] = [
+  { value: "museum", label: "Museum" },
+  { value: "landmark", label: "Landmark" },
+  { value: "park", label: "Park" },
+  { value: "restaurant", label: "Dining" },
+  { value: "shopping", label: "Shopping" },
+  { value: "entertainment", label: "Entertainment" },
+  { value: "cultural", label: "Cultural" },
+  { value: "outdoor", label: "Outdoor" },
+  { value: "nightlife", label: "Nightlife" },
+  { value: "tour", label: "Tour" },
+];
+
+interface AddEventModalProps {
+  visible: boolean;
+  dayNum: number;
+  onAdd: (activity: Activity) => void;
+  onClose: () => void;
+  colors: ReturnType<typeof useColors>;
+}
+
+function AddEventModal({ visible, dayNum, onAdd, onClose, colors }: AddEventModalProps) {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("landmark");
+  const [description, setDescription] = useState("");
+  const [address, setAddress] = useState("");
+  const [durationStr, setDurationStr] = useState("60");
+  const [h, setH] = useState(9);
+  const [m, setM] = useState(0);
+
+  const reset = () => {
+    setName(""); setCategory("landmark"); setDescription("");
+    setAddress(""); setDurationStr("60"); setH(9); setM(0);
+  };
+
+  const handleClose = () => { reset(); onClose(); };
+
+  const handleAdd = () => {
+    if (!name.trim()) { Alert.alert("Missing Name", "Enter an event name."); return; }
+    const duration = parseInt(durationStr, 10);
+    if (isNaN(duration) || duration < 1) { Alert.alert("Invalid Duration", "Enter a duration in minutes."); return; }
+    const time = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onAdd({ id, name: name.trim(), category: category as any, estimated_duration: duration, description: description.trim(), address: address.trim() || undefined, time });
+    reset();
+  };
+
+  const clampH = (n: number) => Math.min(22, Math.max(6, n));
+  const cycleMins = (n: number) => ((n % 60) + 60) % 60;
+  const ampm = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+
+  const s = aeStyles;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <View style={s.overlay}>
+          <View style={[s.sheet, { backgroundColor: "#FFFBEB", borderColor: colors.border, shadowColor: colors.border }]}>
+            {/* Header */}
+            <View style={[s.header, { borderBottomColor: colors.border }]}>
+              <Text style={[s.title, { color: colors.foreground }]}>
+                ADD EVENT — DAY {String(dayNum).padStart(2, "0")}
+              </Text>
+              <TouchableOpacity onPress={handleClose}>
+                <Feather name="x" size={18} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* Name */}
+              <View style={s.field}>
+                <Text style={[s.label, { color: colors.mutedForeground }]}>EVENT NAME *</Text>
+                <View style={[s.inputRow, { borderColor: colors.border }]}>
+                  <TextInput
+                    style={[s.input, { color: colors.foreground }]}
+                    placeholder="e.g. Senso-ji Temple"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={name}
+                    onChangeText={setName}
+                    autoCapitalize="words"
+                  />
+                </View>
+              </View>
+
+              {/* Category */}
+              <View style={s.field}>
+                <Text style={[s.label, { color: colors.mutedForeground }]}>CATEGORY</Text>
+                <View style={s.chipGrid}>
+                  {ALL_CATEGORIES.map((c) => {
+                    const sel = category === c.value;
+                    return (
+                      <TouchableOpacity
+                        key={c.value}
+                        style={[s.chip, { borderColor: colors.border, backgroundColor: sel ? colors.primary : "transparent" }]}
+                        onPress={() => { Haptics.selectionAsync(); setCategory(c.value); }}
+                      >
+                        <Text style={[s.chipText, { color: sel ? "#fff" : colors.foreground }]}>{c.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Time */}
+              <View style={s.field}>
+                <Text style={[s.label, { color: colors.mutedForeground }]}>START TIME</Text>
+                <View style={s.timeRow}>
+                  {/* Hour */}
+                  <View style={s.timeCol}>
+                    <TouchableOpacity style={[s.arrowBtn, { borderColor: colors.border }]} onPress={() => { Haptics.selectionAsync(); setH(clampH(h + 1)); }}>
+                      <Feather name="chevron-up" size={18} color={colors.foreground} />
+                    </TouchableOpacity>
+                    <View style={[s.timeBox, { borderColor: colors.border }]}>
+                      <Text style={[s.timeNum, { color: colors.foreground }]}>{String(h).padStart(2, "0")}</Text>
+                    </View>
+                    <TouchableOpacity style={[s.arrowBtn, { borderColor: colors.border }]} onPress={() => { Haptics.selectionAsync(); setH(clampH(h - 1)); }}>
+                      <Feather name="chevron-down" size={18} color={colors.foreground} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[s.colon, { color: colors.foreground }]}>:</Text>
+                  {/* Minute */}
+                  <View style={s.timeCol}>
+                    <TouchableOpacity style={[s.arrowBtn, { borderColor: colors.border }]} onPress={() => { Haptics.selectionAsync(); setM(cycleMins(m + 15)); }}>
+                      <Feather name="chevron-up" size={18} color={colors.foreground} />
+                    </TouchableOpacity>
+                    <View style={[s.timeBox, { borderColor: colors.border }]}>
+                      <Text style={[s.timeNum, { color: colors.foreground }]}>{String(m).padStart(2, "0")}</Text>
+                    </View>
+                    <TouchableOpacity style={[s.arrowBtn, { borderColor: colors.border }]} onPress={() => { Haptics.selectionAsync(); setM(cycleMins(m - 15)); }}>
+                      <Feather name="chevron-down" size={18} color={colors.foreground} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[s.ampm, { color: colors.mutedForeground }]}>{h12}:{String(m).padStart(2,"0")} {ampm}</Text>
+                </View>
+              </View>
+
+              {/* Duration */}
+              <View style={s.field}>
+                <Text style={[s.label, { color: colors.mutedForeground }]}>DURATION (MINUTES)</Text>
+                <View style={[s.inputRow, { borderColor: colors.border }]}>
+                  <TextInput
+                    style={[s.input, { color: colors.foreground }]}
+                    placeholder="60"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={durationStr}
+                    onChangeText={setDurationStr}
+                    keyboardType="number-pad"
+                  />
+                  <Text style={[s.unit, { color: colors.mutedForeground }]}>min</Text>
+                </View>
+              </View>
+
+              {/* Description */}
+              <View style={s.field}>
+                <Text style={[s.label, { color: colors.mutedForeground }]}>DESCRIPTION (OPTIONAL)</Text>
+                <View style={[s.inputRow, { borderColor: colors.border, alignItems: "flex-start", minHeight: 72, paddingTop: 10 }]}>
+                  <TextInput
+                    style={[s.input, { color: colors.foreground, textAlignVertical: "top" }]}
+                    placeholder="Notes about this stop..."
+                    placeholderTextColor={colors.mutedForeground}
+                    value={description}
+                    onChangeText={setDescription}
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+              </View>
+
+              {/* Address */}
+              <View style={s.field}>
+                <Text style={[s.label, { color: colors.mutedForeground }]}>ADDRESS (OPTIONAL)</Text>
+                <View style={[s.inputRow, { borderColor: colors.border }]}>
+                  <Feather name="map-pin" size={13} color={colors.mutedForeground} style={{ marginRight: 6 }} />
+                  <TextInput
+                    style={[s.input, { color: colors.foreground }]}
+                    placeholder="Street address or neighbourhood"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={address}
+                    onChangeText={setAddress}
+                  />
+                </View>
+              </View>
+
+              {/* Actions */}
+              <View style={s.btnRow}>
+                <TouchableOpacity
+                  style={[s.cancelBtn, { borderColor: colors.border }]}
+                  onPress={handleClose}
+                >
+                  <Text style={[s.cancelText, { color: colors.foreground }]}>CANCEL</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.addBtn, { backgroundColor: colors.primary, borderColor: colors.border, shadowColor: colors.border }]}
+                  onPress={handleAdd}
+                >
+                  <Feather name="plus" size={14} color="#fff" style={{ marginRight: 6 }} />
+                  <Text style={s.addBtnText}>ADD EVENT</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const aeStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(69,26,3,0.45)", justifyContent: "flex-end" },
+  sheet: {
+    borderWidth: 2, borderBottomWidth: 0, borderTopLeftRadius: 12, borderTopRightRadius: 12,
+    maxHeight: "90%", paddingHorizontal: 20, paddingBottom: 32,
+    shadowOffset: { width: 0, height: -4 }, shadowOpacity: 1, shadowRadius: 0, elevation: 8,
+  },
+  header: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    borderBottomWidth: 2, paddingVertical: 14, marginBottom: 16,
+  },
+  title: { fontFamily: "SpaceMono_700Bold", fontSize: 11, letterSpacing: 2 },
+  field: { marginBottom: 16 },
+  label: { fontFamily: "SpaceMono_700Bold", fontSize: 9, letterSpacing: 2, marginBottom: 8 },
+  inputRow: {
+    flexDirection: "row", alignItems: "center", borderWidth: 2, borderRadius: 4,
+    paddingHorizontal: 12, paddingVertical: 10, backgroundColor: "#FEF3C7",
+  },
+  input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 15 },
+  unit: { fontFamily: "SpaceMono_400Regular", fontSize: 10, marginLeft: 6 },
+  chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { borderWidth: 2, borderRadius: 20, paddingHorizontal: 11, paddingVertical: 6 },
+  chipText: { fontFamily: "SpaceMono_700Bold", fontSize: 9 },
+  timeRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  timeCol: { alignItems: "center", gap: 4 },
+  arrowBtn: { width: 40, height: 32, borderWidth: 2, borderRadius: 4, alignItems: "center", justifyContent: "center" },
+  timeBox: { width: 56, height: 44, borderWidth: 2, borderRadius: 4, alignItems: "center", justifyContent: "center", backgroundColor: "#FEF3C7" },
+  timeNum: { fontFamily: "DMSerifDisplay_400Regular", fontSize: 24 },
+  colon: { fontFamily: "DMSerifDisplay_400Regular", fontSize: 28 },
+  ampm: { fontFamily: "SpaceMono_400Regular", fontSize: 13, marginLeft: 6 },
+  btnRow: { flexDirection: "row", gap: 10, marginTop: 8, marginBottom: 8 },
+  cancelBtn: { flex: 1, paddingVertical: 14, borderWidth: 2, borderRadius: 4, alignItems: "center" },
+  cancelText: { fontFamily: "SpaceMono_700Bold", fontSize: 11, letterSpacing: 1 },
+  addBtn: {
+    flex: 2, flexDirection: "row", paddingVertical: 14, borderWidth: 2, borderRadius: 4,
+    alignItems: "center", justifyContent: "center",
+    shadowOffset: { width: 4, height: 4 }, shadowOpacity: 1, shadowRadius: 0, elevation: 4,
+  },
+  addBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 11, color: "#fff", letterSpacing: 2 },
+});
+
 // ─── Activity Card ─────────────────────────────────────────────────────────────
 
 interface ActivityCardProps {
@@ -377,11 +631,13 @@ export default function ItineraryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { currentItinerary, removeActivity, reorderActivity, updateActivityTime, tripInput, setCurrentItinerary } = useItinerary();
+  const { currentItinerary, removeActivity, reorderActivity, updateActivityTime, addActivity, tripInput, setCurrentItinerary } = useItinerary();
   const { user, token } = useAuth();
 
   const [isSaving, setIsSaving] = useState(false);
   const [isRegen, setIsRegen] = useState(false);
+  const [addEventVisible, setAddEventVisible] = useState(false);
+  const [addEventTargetDay, setAddEventTargetDay] = useState(1);
 
   // Time picker state
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -571,7 +827,7 @@ export default function ItineraryScreen() {
             {day.activities.length === 0 ? (
               <View style={[s.emptyDay, { borderColor: colors.border }]}>
                 <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 10 }]}>
-                  ALL ACTIVITIES REMOVED
+                  NO EVENTS YET
                 </Text>
               </View>
             ) : (
@@ -591,9 +847,28 @@ export default function ItineraryScreen() {
                 />
               ))
             )}
+
+            {/* ADD EVENT BUTTON */}
+            <TouchableOpacity
+              style={[s.addEventBtn, { borderColor: colors.primary }]}
+              onPress={() => { Haptics.selectionAsync(); setAddEventTargetDay(day.day); setAddEventVisible(true); }}
+              activeOpacity={0.8}
+            >
+              <Feather name="plus" size={14} color={colors.primary} style={{ marginRight: 6 }} />
+              <Text style={[s.addEventBtnText, { color: colors.primary }]}>ADD EVENT</Text>
+            </TouchableOpacity>
           </View>
         ))}
       </ScrollView>
+
+      {/* ADD EVENT MODAL */}
+      <AddEventModal
+        visible={addEventVisible}
+        dayNum={addEventTargetDay}
+        colors={colors}
+        onClose={() => setAddEventVisible(false)}
+        onAdd={(activity) => { addActivity(addEventTargetDay, activity); setAddEventVisible(false); }}
+      />
 
       {/* TIME PICKER MODAL */}
       {pickerTarget && (
@@ -677,6 +952,21 @@ function makeItinStyles(colors: ReturnType<typeof useColors>) {
       borderRadius: 4,
       padding: 20,
       alignItems: "center",
+    },
+    addEventBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderStyle: "dashed",
+      borderRadius: 4,
+      paddingVertical: 12,
+      marginTop: 8,
+    },
+    addEventBtnText: {
+      fontFamily: "SpaceMono_700Bold",
+      fontSize: 10,
+      letterSpacing: 2,
     },
     empty: { flex: 1, alignItems: "center", justifyContent: "center" },
     emptyText: { fontFamily: "SpaceMono_400Regular", fontSize: 12 },
