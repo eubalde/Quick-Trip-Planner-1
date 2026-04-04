@@ -403,14 +403,22 @@ export default function ItineraryScreen() {
     setPickerTarget(null);
   };
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
+  };
+
   const handleBack = () => {
     if (hasUnsavedChanges) {
       Alert.alert("Unsaved Changes", "Leave without saving?", [
         { text: "Stay", style: "cancel" },
-        { text: "Leave", style: "destructive", onPress: () => router.back() },
+        { text: "Leave", style: "destructive", onPress: goBack },
       ]);
     } else {
-      router.back();
+      goBack();
     }
   };
 
