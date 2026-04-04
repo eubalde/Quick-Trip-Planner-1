@@ -171,6 +171,22 @@ export default function PlanScreen() {
     );
   };
 
+  const handleCreateCustom = () => {
+    if (!city.trim()) { Alert.alert("Missing City", "Enter a destination to begin."); return; }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const blankItinerary = {
+      city: city.trim(),
+      tripDays,
+      pace,
+      interests,
+      isOptimized: false,
+      days: Array.from({ length: tripDays }, (_, i) => ({ day: i + 1, activities: [] })),
+    };
+    setCurrentItinerary(blankItinerary as any);
+    setTripInput({ city: city.trim(), tripDays, interests, pace });
+    router.push("/itinerary");
+  };
+
   const handleGenerate = async () => {
     setSuggestions([]);
     setShowSuggestions(false);
@@ -416,21 +432,31 @@ export default function PlanScreen() {
           </View>
         </View>
 
-        {/* GENERATE BUTTON */}
+        {/* GENERATE / CUSTOM BUTTONS */}
         {isGenerating ? (
           <View style={[s.progressCard, { borderColor: colors.border, backgroundColor: colors.primary }]}>
             <ActivityIndicator color="#fff" style={{ marginBottom: 10 }} />
             <Text style={[s.mono, { color: "#fff", fontSize: 11 }]}>{progressLabel}</Text>
           </View>
         ) : (
-          <TouchableOpacity
-            style={[s.generateBtn, { backgroundColor: colors.primary, borderColor: colors.border, shadowColor: colors.border }]}
-            onPress={handleGenerate}
-            activeOpacity={0.85}
-          >
-            <Feather name="zap" size={16} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={s.generateBtnText}>GENERATE ITINERARY</Text>
-          </TouchableOpacity>
+          <View style={s.actionRow}>
+            <TouchableOpacity
+              style={[s.generateBtn, { backgroundColor: colors.primary, borderColor: colors.border, shadowColor: colors.border, flex: 1 }]}
+              onPress={handleGenerate}
+              activeOpacity={0.85}
+            >
+              <Feather name="zap" size={15} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={s.generateBtnText}>GENERATE</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.customBtn, { borderColor: colors.border, shadowColor: colors.border }]}
+              onPress={handleCreateCustom}
+              activeOpacity={0.85}
+            >
+              <Feather name="edit-3" size={15} color={colors.foreground} style={{ marginRight: 6 }} />
+              <Text style={[s.customBtnText, { color: colors.foreground }]}>CUSTOM</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
     </View>
@@ -603,6 +629,7 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       alignItems: "center",
       marginBottom: 4,
     },
+    actionRow: { flexDirection: "row", gap: 10, marginBottom: 4 },
     generateBtn: {
       flexDirection: "row",
       alignItems: "center",
@@ -614,8 +641,22 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       shadowOpacity: 1,
       shadowRadius: 0,
       elevation: 4,
-      marginBottom: 4,
     },
-    generateBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 13, color: "#fff", letterSpacing: 2 },
+    generateBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 12, color: "#fff", letterSpacing: 2 },
+    customBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 18,
+      paddingHorizontal: 16,
+      borderWidth: 2,
+      borderRadius: 4,
+      backgroundColor: "#FFFBEB",
+      shadowOffset: { width: 4, height: 4 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 4,
+    },
+    customBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 12, letterSpacing: 2 },
   });
 }

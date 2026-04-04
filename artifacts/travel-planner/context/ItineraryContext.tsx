@@ -69,6 +69,7 @@ interface ItineraryContextType {
   removeActivity: (day: number, activityId: string) => void;
   reorderActivity: (day: number, fromIdx: number, toIdx: number) => void;
   updateActivityTime: (day: number, activityId: string, time: string) => void;
+  addActivity: (day: number, activity: Activity) => void;
   tripInput: TripInput | null;
   setTripInput: (i: TripInput | null) => void;
 }
@@ -154,6 +155,20 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(updated)).catch(() => {});
   };
 
+  const addActivity = (day: number, activity: Activity) => {
+    if (!currentItinerary) return;
+    const withTime = activity.time ? activity : { ...activity, time: minsToTime(9 * 60) };
+    const updated: Itinerary = {
+      ...currentItinerary,
+      days: currentItinerary.days.map((d) =>
+        d.day === day ? { ...d, activities: [...d.activities, withTime] } : d
+      ),
+    };
+    _setCurrentItinerary(updated);
+    setHasUnsavedChanges(true);
+    AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(updated)).catch(() => {});
+  };
+
   const updateActivityTime = (day: number, activityId: string, time: string) => {
     if (!currentItinerary) return;
     const updated: Itinerary = {
@@ -184,6 +199,7 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
         removeActivity,
         reorderActivity,
         updateActivityTime,
+        addActivity,
         tripInput,
         setTripInput,
       }}
