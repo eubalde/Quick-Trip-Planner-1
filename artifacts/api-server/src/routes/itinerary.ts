@@ -97,8 +97,8 @@ router.post("/itinerary/generate", async (req, res) => {
     return;
   }
 
-  if (tripDays < 1 || tripDays > 3) {
-    res.status(400).json({ error: "Trip length must be 1-3 days" });
+  if (tripDays < 1 || tripDays > 7) {
+    res.status(400).json({ error: "Trip length must be 1-7 days" });
     return;
   }
 

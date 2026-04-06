@@ -101,6 +101,134 @@ async function fetchCitySuggestions(query: string): Promise<CitySuggestion[]> {
   return results;
 }
 
+// ─── Calendar Date Range Picker ────────────────────────────────────────────────
+
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DOW = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+const SHORT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function sameDay(a: Date, b: Date) { return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+function isBefore(a: Date, b: Date) { return a < b && !sameDay(a,b); }
+function isAfter(a: Date, b: Date) { return a > b && !sameDay(a,b); }
+
+interface CalendarPickerProps {
+  startDate: Date | null;
+  endDate: Date | null;
+  onSelect: (d: Date) => void;
+  colors: ReturnType<typeof useColors>;
+}
+
+function CalendarPicker({ startDate, endDate, onSelect, colors }: CalendarPickerProps) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [viewYear, setViewYear] = React.useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = React.useState(today.getMonth());
+
+  const prevMonth = () => { if(viewMonth===0){setViewYear(y=>y-1);setViewMonth(11);}else setViewMonth(m=>m-1); };
+  const nextMonth = () => { if(viewMonth===11){setViewYear(y=>y+1);setViewMonth(0);}else setViewMonth(m=>m+1); };
+
+  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+  const firstDOW = new Date(viewYear, viewMonth, 1).getDay();
+
+  const cells: (Date|null)[] = [];
+  for(let i=0;i<firstDOW;i++) cells.push(null);
+  for(let d=1;d<=daysInMonth;d++) cells.push(new Date(viewYear,viewMonth,d));
+
+  const cs = calStyles;
+
+  return (
+    <View style={cs.wrap}>
+      {/* Month nav */}
+      <View style={[cs.navRow, {borderColor: colors.border}]}>
+        <TouchableOpacity onPress={prevMonth} style={[cs.navBtn, {borderColor: colors.border}]} hitSlop={{top:8,bottom:8,left:8,right:8}}>
+          <Feather name="chevron-left" size={16} color={colors.foreground}/>
+        </TouchableOpacity>
+        <Text style={[cs.monthLabel, {color: colors.foreground}]}>
+          {MONTHS[viewMonth].toUpperCase()} {viewYear}
+        </Text>
+        <TouchableOpacity onPress={nextMonth} style={[cs.navBtn, {borderColor: colors.border}]} hitSlop={{top:8,bottom:8,left:8,right:8}}>
+          <Feather name="chevron-right" size={16} color={colors.foreground}/>
+        </TouchableOpacity>
+      </View>
+
+      {/* Day-of-week headers */}
+      <View style={cs.dowRow}>
+        {DOW.map(d=>(
+          <Text key={d} style={[cs.dowLabel, {color: colors.mutedForeground}]}>{d}</Text>
+        ))}
+      </View>
+
+      {/* Grid */}
+      <View style={cs.grid}>
+        {cells.map((date, idx) => {
+          if(!date) return <View key={`e${idx}`} style={cs.cell}/>;
+          const isPast = isBefore(date, today);
+          const isSel = (startDate && sameDay(date,startDate)) || (endDate && sameDay(date,endDate));
+          const isStart = startDate && sameDay(date,startDate);
+          const isEnd = endDate && sameDay(date,endDate);
+          const inRange = startDate && endDate && isAfter(date,startDate) && isBefore(date,endDate);
+          const isToday = sameDay(date,today);
+          return (
+            <TouchableOpacity
+              key={date.getTime()}
+              style={[
+                cs.cell,
+                inRange && {backgroundColor: "#FCD34D40"},
+                isSel && {backgroundColor: colors.primary, borderRadius: 4},
+              ]}
+              onPress={() => { if(!isPast) onSelect(date); Haptics.selectionAsync(); }}
+              disabled={isPast}
+              activeOpacity={0.7}
+            >
+              {isToday && !isSel && <View style={[cs.todayDot,{backgroundColor:colors.primary}]}/>}
+              <Text style={[
+                cs.cellNum,
+                {color: isSel ? "#fff" : isPast ? colors.mutedForeground+"60" : colors.foreground},
+                (isStart||isEnd) && {fontFamily:"SpaceMono_700Bold"},
+              ]}>
+                {date.getDate()}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Summary bar */}
+      {startDate ? (
+        <View style={[cs.summary, {borderColor: colors.border, backgroundColor: colors.card}]}>
+          <Feather name="calendar" size={12} color={colors.primary} style={{marginRight:6}}/>
+          <Text style={[cs.summaryText, {color: colors.foreground}]}>
+            {SHORT_MONTHS[startDate.getMonth()]} {startDate.getDate()}
+            {endDate ? ` → ${SHORT_MONTHS[endDate.getMonth()]} ${endDate.getDate()} · ${Math.round((endDate.getTime()-startDate.getTime())/86400000)+1} DAYS` : " — tap end date"}
+          </Text>
+          <TouchableOpacity onPress={()=>onSelect(startDate)} style={{marginLeft:"auto"}} hitSlop={{top:8,bottom:8,left:8,right:8}}>
+            <Feather name="x" size={12} color={colors.mutedForeground}/>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={[cs.summary, {borderColor: colors.border, backgroundColor:"#FEF3C7"}]}>
+          <Feather name="info" size={12} color={colors.mutedForeground} style={{marginRight:6}}/>
+          <Text style={[cs.summaryText, {color: colors.mutedForeground}]}>TAP A START DATE TO BEGIN</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const calStyles = StyleSheet.create({
+  wrap: { gap: 0 },
+  navRow: { flexDirection:"row", alignItems:"center", justifyContent:"space-between", borderWidth:2, borderRadius:4, paddingHorizontal:12, paddingVertical:8, marginBottom:8, backgroundColor:"#FFFBEB" },
+  navBtn: { padding:4, borderWidth:0 },
+  monthLabel: { fontFamily:"SpaceMono_700Bold", fontSize:12, letterSpacing:1 },
+  dowRow: { flexDirection:"row", marginBottom:4 },
+  dowLabel: { flex:1, textAlign:"center", fontFamily:"SpaceMono_700Bold", fontSize:8, letterSpacing:1 },
+  grid: { flexDirection:"row", flexWrap:"wrap" },
+  cell: { width:"14.2857%", aspectRatio:1, alignItems:"center", justifyContent:"center" },
+  cellNum: { fontFamily:"SpaceMono_400Regular", fontSize:13 },
+  todayDot: { width:3, height:3, borderRadius:2, position:"absolute", top:4, alignSelf:"center" },
+  summary: { flexDirection:"row", alignItems:"center", borderWidth:2, borderRadius:4, paddingHorizontal:12, paddingVertical:9, marginTop:8 },
+  summaryText: { fontFamily:"SpaceMono_700Bold", fontSize:9, letterSpacing:1 },
+});
+
 // ─── Screen ────────────────────────────────────────────────────────────────────
 
 export default function PlanScreen() {
@@ -110,7 +238,11 @@ export default function PlanScreen() {
   const { setCurrentItinerary, setTripInput } = useItinerary();
 
   const [city, setCity] = useState("");
-  const [tripDays, setTripDays] = useState(2);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const tripDays = startDate && endDate
+    ? Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1)
+    : startDate ? 1 : 1;
   const [interests, setInterests] = useState<UserInterest[]>([]);
   const [pace, setPace] = useState<TravelPace>("standard");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -171,19 +303,34 @@ export default function PlanScreen() {
     );
   };
 
+  const handleDateSelect = (date: Date) => {
+    if (!startDate || (startDate && endDate)) {
+      setStartDate(date); setEndDate(null);
+    } else {
+      if (sameDay(date, startDate)) { setStartDate(null); setEndDate(null); }
+      else if (isBefore(date, startDate)) { setStartDate(date); setEndDate(null); }
+      else {
+        const days = Math.round((date.getTime() - startDate.getTime()) / 86400000) + 1;
+        if (days > 7) {
+          const capped = new Date(startDate); capped.setDate(capped.getDate() + 6);
+          setEndDate(capped);
+        } else { setEndDate(date); }
+      }
+    }
+  };
+
   const handleCreateCustom = () => {
     if (!city.trim()) { Alert.alert("Missing City", "Enter a destination to begin."); return; }
+    if (!startDate) { Alert.alert("No Dates", "Select a date range on the calendar."); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const effectiveEnd = endDate ?? startDate;
     const blankItinerary = {
-      city: city.trim(),
-      tripDays,
-      pace,
-      interests,
-      isOptimized: false,
+      city: city.trim(), tripDays, pace, interests, isOptimized: false,
+      startDate: startDate.toISOString(), endDate: effectiveEnd.toISOString(),
       days: Array.from({ length: tripDays }, (_, i) => ({ day: i + 1, activities: [] })),
     };
     setCurrentItinerary(blankItinerary as any);
-    setTripInput({ city: city.trim(), tripDays, interests, pace });
+    setTripInput({ city: city.trim(), tripDays, interests, pace, startDate: startDate.toISOString(), endDate: effectiveEnd.toISOString() });
     router.push("/itinerary");
   };
 
@@ -191,6 +338,7 @@ export default function PlanScreen() {
     setSuggestions([]);
     setShowSuggestions(false);
     if (!city.trim()) { Alert.alert("Missing City", "Enter a destination to begin."); return; }
+    if (!startDate) { Alert.alert("No Dates", "Select a date range on the calendar."); return; }
     if (interests.length === 0) { Alert.alert("No Interests", "Select at least one interest tag."); return; }
 
     setIsGenerating(true);
@@ -212,8 +360,9 @@ export default function PlanScreen() {
       });
       const data = await res.json();
       if (!res.ok) { Alert.alert("Error", data.error ?? "Generation failed"); return; }
-      setCurrentItinerary(data);
-      setTripInput({ city: city.trim(), tripDays, interests, pace });
+      const effectiveEnd2 = endDate ?? startDate!;
+      setCurrentItinerary({ ...data, startDate: startDate!.toISOString(), endDate: effectiveEnd2.toISOString() });
+      setTripInput({ city: city.trim(), tripDays, interests, pace, startDate: startDate!.toISOString(), endDate: effectiveEnd2.toISOString() });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push("/itinerary");
     } catch {
@@ -332,33 +481,18 @@ export default function PlanScreen() {
           )}
         </View>
 
-        {/* DURATION */}
+        {/* DURATION — CALENDAR */}
         <View style={[s.card, { shadowColor: colors.border }]}>
-          <Text style={[s.cardLabel, { color: colors.mutedForeground }]}>DURATION</Text>
-          <View style={s.dayRow}>
-            {[1, 2, 3].map((d) => {
-              const sel = tripDays === d;
-              return (
-                <TouchableOpacity
-                  key={d}
-                  style={[
-                    s.dayBtn,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: sel ? colors.primary : colors.card,
-                      shadowColor: colors.border,
-                    },
-                  ]}
-                  onPress={() => { Haptics.selectionAsync(); setTripDays(d); }}
-                >
-                  <Text style={[s.dayBtnNum, { color: sel ? "#fff" : colors.foreground }]}>{d}</Text>
-                  <Text style={[s.dayBtnSub, { color: sel ? "rgba(255,255,255,0.7)" : colors.mutedForeground }]}>
-                    {d === 1 ? "DAY" : "DAYS"}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+          <View style={s.cardHeaderRow}>
+            <Text style={[s.cardLabel, { color: colors.mutedForeground }]}>DATES</Text>
+            <Text style={[s.mono, { color: colors.mutedForeground, fontSize: 10 }]}>MAX 7 DAYS</Text>
           </View>
+          <CalendarPicker
+            startDate={startDate}
+            endDate={endDate}
+            onSelect={handleDateSelect}
+            colors={colors}
+          />
         </View>
 
         {/* INTERESTS */}
