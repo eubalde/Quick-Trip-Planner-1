@@ -816,6 +816,12 @@ export default function ItineraryScreen() {
                   {String(day.day).padStart(2, "0")}
                 </Text>
               </View>
+              {tripInput?.startDate ? (() => {
+                const d = new Date(tripInput.startDate);
+                d.setDate(d.getDate() + (day.day - 1));
+                const label = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }).toUpperCase();
+                return <Text style={[s.dayDateLabel, { color: colors.mutedForeground }]}>{label}</Text>;
+              })() : null}
               <Text style={[s.dayTitle, { color: colors.foreground }]}>
                 DAY {String(day.day).padStart(2, "0")}
               </Text>
@@ -944,6 +950,7 @@ function makeItinStyles(colors: ReturnType<typeof useColors>) {
     },
     dayNumBox: { borderRadius: 4, paddingHorizontal: 10, paddingVertical: 6 },
     dayNumText: { fontFamily: "SpaceMono_700Bold", fontSize: 14 },
+    dayDateLabel: { fontFamily: "SpaceMono_400Regular", fontSize: 9, marginRight: 2 },
     dayTitle: { fontFamily: "SpaceMono_700Bold", fontSize: 14, flex: 1 },
     mono: { fontFamily: "SpaceMono_400Regular" },
     emptyDay: {

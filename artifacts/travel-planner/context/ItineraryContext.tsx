@@ -52,6 +52,8 @@ export interface Itinerary {
   isOptimized: boolean;
   generatedAt?: string;
   id?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface TripInput {
@@ -59,6 +61,8 @@ export interface TripInput {
   tripDays: number;
   interests: UserInterest[];
   pace: TravelPace;
+  startDate?: string;
+  endDate?: string;
 }
 
 interface ItineraryContextType {
