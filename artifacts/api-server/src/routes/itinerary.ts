@@ -28,12 +28,36 @@ const CATEGORY_POPULARITY: Record<string, number> = {
 const INTEREST_CATEGORY_MAP: Record<string, string[]> = {
   history: ["museum", "landmark", "cultural", "tour"],
   art: ["museum", "cultural", "entertainment"],
-  food: ["restaurant", "cultural", "tour"],
+  food: ["restaurant", "cultural"],
   nature: ["park", "outdoor", "landmark"],
   architecture: ["landmark", "cultural", "tour"],
   nightlife: ["nightlife", "entertainment", "restaurant"],
   shopping: ["shopping", "entertainment"],
   sports: ["outdoor", "park", "entertainment"],
+};
+
+/** Per-category guidance so the AI generates varied sub-types, not just the generic default */
+const CATEGORY_DIVERSITY_HINTS: Record<string, string> = {
+  restaurant:
+    "Vary widely: street-food stalls, local hawker centres, traditional home-cooking spots, hole-in-the-wall joints, specialty cuisine (e.g. seafood, BBQ, dumplings), casual neighbourhood cafes, bustling food courts, and fine-dining restaurants. AVOID generic chain restaurants.",
+  nightlife:
+    "Vary widely: live-music venues (jazz, blues, rock), rooftop bars, speakeasies, night markets, wine bars, cocktail lounges, comedy clubs, izakayas/tapas bars, late-night dessert spots. AVOID generic 'nightclub' or 'bar' entries.",
+  shopping:
+    "Vary widely: open-air street markets, antique/vintage shops, local artisan boutiques, independent bookshops, craft stores, specialty food shops, night bazaars, designer districts, flea markets. AVOID generic 'shopping mall' entries.",
+  museum:
+    "Vary: major national museums, small specialist museums (photography, ceramics, literature), interactive science centres, art galleries (contemporary and classical), living-history sites.",
+  park:
+    "Vary: large city parks, botanical gardens, rooftop gardens, hilltop viewpoints with trails, riverfront promenades, hidden pocket parks.",
+  outdoor:
+    "Vary: hiking trails, cycling routes, kayaking/paddleboarding spots, scenic viewpoints, coastal walks, wildlife parks.",
+  cultural:
+    "Vary: traditional performance venues, religious/historical sites, neighbourhood heritage walks, artisan workshops, community cultural centres.",
+  landmark:
+    "Vary: iconic skyline landmarks, lesser-known architectural gems, bridges, plazas, historic gates or towers, panoramic observation points.",
+  entertainment:
+    "Vary: live theatre, comedy clubs, escape rooms, cinema palaces, game arcades, sports arenas, concert halls.",
+  tour:
+    "Vary: walking street-art tours, boat/river tours, food-tasting tours, cycling city tours, historical ghost tours, neighbourhood deep-dive tours.",
 };
 
 function scoreActivity(
@@ -109,24 +133,33 @@ async function generateDayActivities(
 
   const focusInterest = interests[(dayNum - 1) % interests.length] ?? interests[0]!;
 
+  // Build sub-type diversity guidance for every allowed category
+  const diversityLines = allowedCats
+    .filter((c) => CATEGORY_DIVERSITY_HINTS[c])
+    .map((c) => `  • ${c}: ${CATEGORY_DIVERSITY_HINTS[c]}`)
+    .join("\n");
+
   const systemPrompt =
-    `You are a travel expert. Generate exactly ${count} tourist activities in ${city} for day ${dayNum} of a ${tripDays}-day trip. ` +
-    `Return ONLY a valid JSON array. Each object must have: ` +
-    `"id" (string, e.g. "d${dayNum}_1"), "name" (specific real place name), ` +
+    `You are a travel expert generating real, specific, diverse tourist activities. ` +
+    `Generate exactly ${count} activities in ${city} for day ${dayNum} of a ${tripDays}-day trip. ` +
+    `Return ONLY a valid JSON array. Each object must have exactly: ` +
+    `"id" ("d${dayNum}_N"), "name" (real specific venue/place name), ` +
     `"category" (MUST be one of: ${allowedCats.join(", ")}), ` +
     `"estimated_duration" (integer minutes, 30–180), "description" (1–2 sentences), ` +
-    `"address" (neighbourhood or street in ${city}), "lat" (number), "lng" (number). ` +
-    `No extra fields. Return ONLY the JSON array.`;
+    `"address" (street or neighbourhood in ${city}), "lat" (number), "lng" (number). ` +
+    `Return ONLY the JSON array, no other text.`;
 
   const userPrompt =
-    `Day ${dayNum}/${tripDays} in ${city}. Selected interests: ${interests.join(", ")}. Today's focus: ${focusInterest}.\n` +
-    `STRICT RULES — follow all of them:\n` +
-    `1. EVERY activity MUST have a category from this exact list: [${allowedCats.join(", ")}]. No exceptions.\n` +
-    `2. Use real, specific place names — no generic descriptions like "local market".\n` +
-    `3. Spread picks across different neighbourhoods/areas of ${city}.\n` +
-    `4. Vary duration: include quick stops (30–45 min) and immersive experiences (90–180 min).\n` +
-    `5. Every pick must be genuinely worth visiting and directly relevant to the interests.\n` +
-    `6. Do NOT include anything unrelated to: ${interests.join(", ")}.\n` +
+    `Day ${dayNum}/${tripDays} in ${city}. Interests: ${interests.join(", ")}. Today's focus: ${focusInterest}.\n\n` +
+    `MANDATORY RULES:\n` +
+    `1. Category must be one of: [${allowedCats.join(", ")}] — no exceptions.\n` +
+    `2. Every name must be a REAL, specific venue (e.g. "Tsukiji Outer Market", not "local market").\n` +
+    `3. Spread picks across DIFFERENT neighbourhoods/districts of ${city} — no clustering in one area.\n` +
+    `4. Generate genuinely DIVERSE sub-types within each category:\n` +
+    `${diversityLines}\n` +
+    `5. Do NOT repeat any place that would obviously appear in another day (be creative).\n` +
+    `6. Include both quick stops (30–45 min) and deep-dive experiences (90–180 min).\n` +
+    `7. All picks must be directly relevant to: ${interests.join(", ")}.\n` +
     `Return ONLY the JSON array.`;
 
   try {
@@ -173,19 +206,20 @@ router.post("/itinerary/generate", async (req, res) => {
   }
 
   const activitiesPerDay = ACTIVITY_COUNTS[pace] ?? 3;
-  const bufferCount = activitiesPerDay + 5;
+  // Triple buffer so after cross-day global dedup each day still has enough candidates
+  const bufferPerDay = activitiesPerDay * 3 + 3;
 
-  // Build the allowed category set from selected interests — hard enforcement
+  // Hard category allowlist from selected interests
   const allowedCategories = new Set(
     interests.flatMap((i) => INTEREST_CATEGORY_MAP[i] ?? [])
   );
 
-  // All days generated in parallel — total time ≈ time of one call
+  // Phase 1: All days generated in parallel
   let dayResults: ActivityCandidate[][];
   try {
     dayResults = await Promise.all(
       Array.from({ length: tripDays }, (_, i) =>
-        generateDayActivities(city, i + 1, tripDays, interests, pace, bufferCount, req.log)
+        generateDayActivities(city, i + 1, tripDays, interests, pace, bufferPerDay, req.log)
       )
     );
   } catch (err) {
@@ -194,43 +228,52 @@ router.post("/itinerary/generate", async (req, res) => {
     return;
   }
 
-  const allUsedNames = new Set<string>();
-  const days: Array<{ day: number; activities: ActivityCandidate[] }> = [];
-  let fallbackTier: number | null = null;
-
-  for (let d = 0; d < tripDays; d++) {
-    const raw = dayResults[d] ?? [];
-
-    if (raw.length === 0) {
-      fallbackTier = 1;
-    }
-
-    // Hard filter: keep only activities whose category matches the selected interests
-    const interestAligned = raw.filter((a) => allowedCategories.has(a.category));
-    // Fall back to raw only if the AI produced nothing on-interest at all
-    const filtered = interestAligned.length >= activitiesPerDay ? interestAligned : raw;
-
-    // Remove cross-day name duplicates
-    const unique = filtered.filter((a) => {
+  // Phase 2: Build a single global pool — deduplicate by exact name across all days
+  const seenNames = new Set<string>();
+  const globalPool: ActivityCandidate[] = [];
+  for (const dayResult of dayResults) {
+    for (const a of dayResult) {
       const key = (a.name ?? "").toLowerCase().trim();
-      return key.length > 0 && !allUsedNames.has(key);
-    });
-
-    const pool = unique.length >= activitiesPerDay ? unique : filtered;
-
-    const usedCategories = new Set<string>();
-    const scored = pool.map((a) => ({
-      ...a,
-      score: scoreActivity(a, interests, usedCategories),
-    }));
-    scored.sort((a, b) => b.score - a.score);
-
-    const selected = scored.slice(0, activitiesPerDay);
-    selected.forEach((a) => allUsedNames.add((a.name ?? "").toLowerCase().trim()));
-
-    const sequenced = nearestNeighborSequence(selected);
-    days.push({ day: d + 1, activities: sequenced });
+      if (key.length > 0 && !seenNames.has(key)) {
+        seenNames.add(key);
+        globalPool.push(a);
+      }
+    }
   }
+
+  // Phase 3: Hard-filter by interest-aligned categories; fall back to full pool only if needed
+  const interestAligned = globalPool.filter((a) => allowedCategories.has(a.category));
+  const filteredPool = interestAligned.length >= activitiesPerDay * tripDays
+    ? interestAligned
+    : globalPool;
+
+  // Phase 4: Score globally
+  const globalUsedCats = new Set<string>();
+  const scored = filteredPool.map((a) => ({
+    ...a,
+    score: scoreActivity(a, interests, globalUsedCats),
+  }));
+  scored.sort((a, b) => b.score - a.score);
+
+  // Phase 5: Round-robin distribution across days — each day gets activities
+  // at positions [d, d+tripDays, d+2*tripDays, ...] so high and lower scored
+  // picks are spread evenly rather than day 1 getting all the best spots.
+  const dayBuckets: typeof scored[] = Array.from({ length: tripDays }, () => []);
+  scored.forEach((a, i) => {
+    const dayIdx = i % tripDays;
+    if ((dayBuckets[dayIdx]?.length ?? 0) < activitiesPerDay) {
+      dayBuckets[dayIdx]!.push(a);
+    }
+  });
+
+  const fallbackTier: number | null = dayBuckets.some((b) => b.length < activitiesPerDay)
+    ? 1
+    : null;
+
+  const days = dayBuckets.map((bucket, i) => ({
+    day: i + 1,
+    activities: nearestNeighborSequence(bucket),
+  }));
 
   res.json({
     city,
