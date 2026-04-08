@@ -103,30 +103,30 @@ async function generateDayActivities(
   count: number,
   log: { error: (obj: object, msg: string) => void }
 ): Promise<ActivityCandidate[]> {
-  const interestHints = interests
-    .map((i) => `${i} (${(INTEREST_CATEGORY_MAP[i] ?? []).join(", ")})`)
-    .join("; ");
+  const allowedCats = [
+    ...new Set(interests.flatMap((i) => INTEREST_CATEGORY_MAP[i] ?? [])),
+  ];
 
   const focusInterest = interests[(dayNum - 1) % interests.length] ?? interests[0]!;
-  const focusCats = (INTEREST_CATEGORY_MAP[focusInterest] ?? []).join(", ");
 
   const systemPrompt =
     `You are a travel expert. Generate exactly ${count} tourist activities in ${city} for day ${dayNum} of a ${tripDays}-day trip. ` +
     `Return ONLY a valid JSON array. Each object must have: ` +
     `"id" (string, e.g. "d${dayNum}_1"), "name" (specific real place name), ` +
-    `"category" (one of: museum, landmark, park, restaurant, shopping, entertainment, cultural, outdoor, nightlife, tour), ` +
+    `"category" (MUST be one of: ${allowedCats.join(", ")}), ` +
     `"estimated_duration" (integer minutes, 30–180), "description" (1–2 sentences), ` +
     `"address" (neighbourhood or street in ${city}), "lat" (number), "lng" (number). ` +
     `No extra fields. Return ONLY the JSON array.`;
 
   const userPrompt =
-    `Day ${dayNum}/${tripDays} in ${city}. Interests: ${interestHints}. Today's focus: ${focusInterest} (${focusCats}).\n` +
-    `Rules:\n` +
-    `1. Use real, specific place names — not generic descriptions.\n` +
-    `2. Spread picks across different neighbourhoods/areas of ${city}.\n` +
-    `3. Mix 2–3 interest-aligned spots with 1–2 hidden gems or local favourites.\n` +
-    `4. Vary duration: quick stops (30–45 min) and immersive experiences (90–180 min).\n` +
-    `5. Every pick must be distinct and genuinely worth visiting.\n` +
+    `Day ${dayNum}/${tripDays} in ${city}. Selected interests: ${interests.join(", ")}. Today's focus: ${focusInterest}.\n` +
+    `STRICT RULES — follow all of them:\n` +
+    `1. EVERY activity MUST have a category from this exact list: [${allowedCats.join(", ")}]. No exceptions.\n` +
+    `2. Use real, specific place names — no generic descriptions like "local market".\n` +
+    `3. Spread picks across different neighbourhoods/areas of ${city}.\n` +
+    `4. Vary duration: include quick stops (30–45 min) and immersive experiences (90–180 min).\n` +
+    `5. Every pick must be genuinely worth visiting and directly relevant to the interests.\n` +
+    `6. Do NOT include anything unrelated to: ${interests.join(", ")}.\n` +
     `Return ONLY the JSON array.`;
 
   try {
@@ -175,6 +175,11 @@ router.post("/itinerary/generate", async (req, res) => {
   const activitiesPerDay = ACTIVITY_COUNTS[pace] ?? 3;
   const bufferCount = activitiesPerDay + 5;
 
+  // Build the allowed category set from selected interests — hard enforcement
+  const allowedCategories = new Set(
+    interests.flatMap((i) => INTEREST_CATEGORY_MAP[i] ?? [])
+  );
+
   // All days generated in parallel — total time ≈ time of one call
   let dayResults: ActivityCandidate[][];
   try {
@@ -200,13 +205,18 @@ router.post("/itinerary/generate", async (req, res) => {
       fallbackTier = 1;
     }
 
+    // Hard filter: keep only activities whose category matches the selected interests
+    const interestAligned = raw.filter((a) => allowedCategories.has(a.category));
+    // Fall back to raw only if the AI produced nothing on-interest at all
+    const filtered = interestAligned.length >= activitiesPerDay ? interestAligned : raw;
+
     // Remove cross-day name duplicates
-    const unique = raw.filter((a) => {
+    const unique = filtered.filter((a) => {
       const key = (a.name ?? "").toLowerCase().trim();
       return key.length > 0 && !allUsedNames.has(key);
     });
 
-    const pool = unique.length >= activitiesPerDay ? unique : raw;
+    const pool = unique.length >= activitiesPerDay ? unique : filtered;
 
     const usedCategories = new Set<string>();
     const scored = pool.map((a) => ({
