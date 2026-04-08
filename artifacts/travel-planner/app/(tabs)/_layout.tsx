@@ -16,6 +16,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "map", selected: "map.fill" }} />
         <Label>Plan</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="itinerary-list">
+        <Icon sf={{ default: "list.bullet.clipboard", selected: "list.bullet.clipboard.fill" }} />
+        <Label>Itinerary</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="saved">
         <Icon sf={{ default: "bookmark", selected: "bookmark.fill" }} />
         <Label>Saved</Label>
@@ -64,6 +68,18 @@ function ClassicTabLayout() {
               <SymbolView name="map" tintColor={color} size={22} />
             ) : (
               <Feather name="map" size={20} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="itinerary-list"
+        options={{
+          title: "Itinerary",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="list.bullet.clipboard" tintColor={color} size={22} />
+            ) : (
+              <Feather name="layers" size={20} color={color} />
             ),
         }}
       />
