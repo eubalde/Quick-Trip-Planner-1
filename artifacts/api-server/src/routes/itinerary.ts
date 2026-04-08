@@ -247,17 +247,18 @@ router.post("/itinerary/generate", async (req, res) => {
     ? interestAligned
     : globalPool;
 
-  // Phase 4: Score globally
+  // Phase 4: Score globally with a random jitter so the same city + interests
+  // doesn't produce the exact same sorted order every time.
+  // Jitter of ±0.12 is large enough to vary ordering within a tier but small
+  // enough that genuinely better activities still tend to surface first.
   const globalUsedCats = new Set<string>();
   const scored = filteredPool.map((a) => ({
     ...a,
-    score: scoreActivity(a, interests, globalUsedCats),
+    score: scoreActivity(a, interests, globalUsedCats) + (Math.random() * 0.24 - 0.12),
   }));
   scored.sort((a, b) => b.score - a.score);
 
-  // Phase 5: Round-robin distribution across days — each day gets activities
-  // at positions [d, d+tripDays, d+2*tripDays, ...] so high and lower scored
-  // picks are spread evenly rather than day 1 getting all the best spots.
+  // Phase 5: Round-robin distribution across days
   const dayBuckets: typeof scored[] = Array.from({ length: tripDays }, () => []);
   scored.forEach((a, i) => {
     const dayIdx = i % tripDays;
@@ -270,9 +271,19 @@ router.post("/itinerary/generate", async (req, res) => {
     ? 1
     : null;
 
+  // Phase 6: Shuffle each day's bucket before routing so the nearest-neighbour
+  // start point also varies — otherwise the first element is always the same.
+  function shuffleArray<T>(arr: T[]): T[] {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j]!, arr[i]!];
+    }
+    return arr;
+  }
+
   const days = dayBuckets.map((bucket, i) => ({
     day: i + 1,
-    activities: nearestNeighborSequence(bucket),
+    activities: nearestNeighborSequence(shuffleArray(bucket)),
   }));
 
   res.json({
