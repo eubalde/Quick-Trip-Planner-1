@@ -6,11 +6,11 @@ import { validateToken } from "./auth";
 
 const router: IRouter = Router();
 
-function authMiddleware(req: Request, _res: Response, next: NextFunction) {
+async function authMiddleware(req: Request, _res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
-    const userId = validateToken(token);
+    const userId = await validateToken(token);
     if (userId) {
       (req as Request & { userId?: string }).userId = userId;
     }
