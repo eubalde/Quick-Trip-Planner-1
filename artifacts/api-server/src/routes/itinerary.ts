@@ -189,8 +189,8 @@ async function generateDayActivities(
     .join("\n");
 
   const systemPrompt =
-    `You are a verified travel data specialist. Your sole job is to output real, factually accurate venue data. ` +
-    `ACCURACY IS MORE IMPORTANT THAN QUANTITY. ` +
+    `You are a verified travel data specialist. Your sole job is to output real, factually accurate, maximally diverse venue data. ` +
+    `ACCURACY AND VARIETY are equally important. ` +
     `Generate up to ${count} tourist activities in ${city}. ` +
     `Return ONLY a valid JSON array. Each object must have exactly these fields: ` +
     `"id" ("d${dayNum}_N"), "name" (exact real venue name as publicly known), ` +
@@ -201,26 +201,30 @@ async function generateDayActivities(
     `"lat" (accurate latitude), "lng" (accurate longitude), ` +
     `"confidence" ("high" | "medium" | "low" — your certainty this venue is real and currently operating). ` +
     `Confidence guide: ` +
-    `"high" = nationally recognised institution, major government museum, iconic landmark, major chain — virtually certain to be open; ` +
+    `"high" = nationally recognised institution, major government museum, iconic landmark — virtually certain to be open; ` +
     `"medium" = well-established independent venue with strong public profile, likely still operating; ` +
-    `"low" = newer, boutique, or uncertain — you are not fully confident it is still open. ` +
+    `"low" = newer, boutique, or uncertain — not fully confident it is still open. ` +
     `Return ONLY the JSON array, no other text.`;
 
+  const usedCatsDisplay = allowedCats.join(", ");
   const userPrompt =
     `Day ${dayNum}/${tripDays} in ${city}. Interests: ${interests.join(", ")}. Today's focus: ${focusInterest}.\n\n` +
-    `DATA INTEGRITY RULES — all mandatory:\n` +
-    `1. REAL VENUES ONLY: every entry must be a venue you have clear knowledge of in ${city}. If uncertain → omit.\n` +
-    `2. OPERATING STATUS: prefer venues that have been continuously operating for many years and are very unlikely to have closed.\n` +
-    `3. EXACT NAMES: use the official public name (e.g. "Tsukiji Outer Market"). No invented or composite names.\n` +
-    `4. ACCURATE ADDRESSES: use the correct street address or neighbourhood. Do not guess.\n` +
-    `5. ACCURATE COORDINATES: lat/lng must place the venue correctly inside ${city}. No city-centre placeholders.\n` +
-    `6. CONFIDENCE REQUIRED: every entry must include a "confidence" field ("high"/"medium"/"low").\n` +
-    `7. CATEGORY CONSTRAINT: category must be one of [${allowedCats.join(", ")}] — no exceptions.\n` +
-    `8. INTEREST RELEVANCE: all picks must relate to ${interests.join(", ")}.\n` +
-    `9. SUB-TYPE DIVERSITY:\n${diversityLines}\n` +
-    `10. GEOGRAPHIC SPREAD: span different neighbourhoods of ${city}.\n` +
-    `11. NO FABRICATION: do not invent venue names, composite venues, or fictional addresses.\n` +
-    `Returning fewer than ${count} entries is acceptable — quality over quantity.`;
+    `DATA INTEGRITY — mandatory:\n` +
+    `1. REAL VENUES ONLY: every entry must be a venue you have clear knowledge of in ${city}. Uncertain → omit.\n` +
+    `2. OPERATING STATUS: prefer venues continuously operating for many years, very unlikely to have closed.\n` +
+    `3. EXACT NAMES: use the official public name. No invented or composite names.\n` +
+    `4. ACCURATE ADDRESSES: real street address or neighbourhood. Do not guess.\n` +
+    `5. ACCURATE COORDINATES: lat/lng must correctly place the venue in ${city}. No city-centre placeholders.\n` +
+    `6. CONFIDENCE REQUIRED: every entry must include a "confidence" field.\n` +
+    `7. CATEGORY CONSTRAINT: category must be one of [${usedCatsDisplay}] — no exceptions.\n` +
+    `8. INTEREST RELEVANCE: all picks must relate to ${interests.join(", ")}.\n\n` +
+    `DIVERSITY — also mandatory:\n` +
+    `9. NO TWO ENTRIES may be the same type of experience. If you include a natural history museum, the next museum must be a completely different type (contemporary art, science, living-history, etc.).\n` +
+    `10. MIX SETTINGS: alternate indoor and outdoor venues. Mix daytime and evening-appropriate activities. Mix active (walking, exploring) and contemplative (sitting, observing).\n` +
+    `11. SUB-TYPE DIVERSITY within each category:\n${diversityLines}\n` +
+    `12. GEOGRAPHIC SPREAD: span at least ${Math.min(3, count)} distinct neighbourhoods of ${city}. No clustering.\n` +
+    `13. NO FABRICATION: do not invent venue names, composite venues, or fictional addresses.\n` +
+    `Fewer than ${count} entries is fine — quality and variety over quantity.`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -293,14 +297,24 @@ router.post("/itinerary/generate", async (req, res) => {
     return;
   }
 
-  // Phase 2: Build a single global pool — deduplicate by exact name across all days
-  const seenNames = new Set<string>();
+  // Phase 2: Build a global pool with fuzzy name deduplication across all days.
+  // Normalize: lowercase, strip leading articles, remove punctuation, first 20 chars.
+  function normalizeName(name: string): string {
+    return (name ?? "")
+      .toLowerCase()
+      .replace(/^(the|a|an)\s+/i, "")
+      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 20);
+  }
+  const seenKeys = new Set<string>();
   const globalPool: ActivityCandidate[] = [];
   for (const dayResult of dayResults) {
     for (const a of dayResult) {
-      const key = (a.name ?? "").toLowerCase().trim();
-      if (key.length > 0 && !seenNames.has(key)) {
-        seenNames.add(key);
+      const key = normalizeName(a.name);
+      if (key.length > 2 && !seenKeys.has(key)) {
+        seenKeys.add(key);
         globalPool.push(a);
       }
     }
@@ -312,10 +326,7 @@ router.post("/itinerary/generate", async (req, res) => {
     ? interestAligned
     : globalPool;
 
-  // Phase 4: Score globally with a random jitter so the same city + interests
-  // doesn't produce the exact same sorted order every time.
-  // Jitter of ±0.12 is large enough to vary ordering within a tier but small
-  // enough that genuinely better activities still tend to surface first.
+  // Phase 4: Score globally with random jitter for variety
   const globalUsedCats = new Set<string>();
   const scored = filteredPool.map((a) => ({
     ...a,
@@ -323,14 +334,43 @@ router.post("/itinerary/generate", async (req, res) => {
   }));
   scored.sort((a, b) => b.score - a.score);
 
-  // Phase 5: Round-robin distribution across days
+  // Phase 5: Diversity-aware distribution — prevent category clustering within each day.
+  // maxPerCatPerDay caps how many activities of the same category can appear in one day.
+  // Two passes: first enforce the cap, then fill remaining slots without restriction.
+  const numAllowedCats = Math.max(allowedCategories.size, 1);
+  const maxPerCatPerDay = Math.max(1, Math.ceil(activitiesPerDay / numAllowedCats));
+
+  const placed = new Set<(typeof scored)[0]>();
   const dayBuckets: typeof scored[] = Array.from({ length: tripDays }, () => []);
-  scored.forEach((a, i) => {
-    const dayIdx = i % tripDays;
-    if ((dayBuckets[dayIdx]?.length ?? 0) < activitiesPerDay) {
-      dayBuckets[dayIdx]!.push(a);
+  const dayCatCounts: Map<string, number>[] = Array.from({ length: tripDays }, () => new Map());
+
+  function tryPlace(a: (typeof scored)[0], enforceCap: boolean): boolean {
+    let bestDay = -1;
+    let bestCatCount = Infinity;
+    let bestTotalCount = Infinity;
+    for (let d = 0; d < tripDays; d++) {
+      const bucket = dayBuckets[d]!;
+      if (bucket.length >= activitiesPerDay) continue;
+      const catCount = dayCatCounts[d]!.get(a.category) ?? 0;
+      if (enforceCap && catCount >= maxPerCatPerDay) continue;
+      if (catCount < bestCatCount || (catCount === bestCatCount && bucket.length < bestTotalCount)) {
+        bestDay = d;
+        bestCatCount = catCount;
+        bestTotalCount = bucket.length;
+      }
     }
-  });
+    if (bestDay < 0) return false;
+    dayBuckets[bestDay]!.push(a);
+    const curr = dayCatCounts[bestDay]!.get(a.category) ?? 0;
+    dayCatCounts[bestDay]!.set(a.category, curr + 1);
+    placed.add(a);
+    return true;
+  }
+
+  // Pass 1: diversity-enforced fill
+  for (const a of scored) { if (!placed.has(a)) tryPlace(a, true); }
+  // Pass 2: fill remaining slots without category cap
+  for (const a of scored) { if (!placed.has(a)) tryPlace(a, false); }
 
   const fallbackTier: number | null = dayBuckets.some((b) => b.length < activitiesPerDay)
     ? 1
