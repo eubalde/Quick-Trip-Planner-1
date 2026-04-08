@@ -35,7 +35,7 @@ export interface Activity {
   lat?: number;
   lng?: number;
   score?: number;
-  time?: string; // "HH:MM" in 24h format
+  time?: string;
 }
 
 export interface DayPlan {
@@ -45,6 +45,7 @@ export interface DayPlan {
 
 export interface Itinerary {
   city: string;
+  name?: string | null;
   tripDays: number;
   pace: TravelPace;
   interests: UserInterest[];
@@ -74,15 +75,14 @@ interface ItineraryContextType {
   reorderActivity: (day: number, fromIdx: number, toIdx: number) => void;
   updateActivityTime: (day: number, activityId: string, time: string) => void;
   addActivity: (day: number, activity: Activity) => void;
+  renameItinerary: (name: string) => void;
   tripInput: TripInput | null;
   setTripInput: (i: TripInput | null) => void;
 }
 
-/** Assign sequential default times to activities that have no time set.
- *  Starts at 09:00, advances by duration + 30min travel buffer per activity. */
 function assignDefaultTimes(days: DayPlan[]): DayPlan[] {
   return days.map((d) => {
-    let totalMins = 9 * 60; // 09:00
+    let totalMins = 9 * 60;
     const activities = d.activities.map((a) => {
       if (a.time) { totalMins = timeToMins(a.time) + a.estimated_duration + 30; return a; }
       const t = minsToTime(totalMins);
@@ -123,6 +123,14 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
     } else {
       AsyncStorage.removeItem(DRAFT_KEY).catch(() => {});
     }
+  };
+
+  const renameItinerary = (name: string) => {
+    if (!currentItinerary) return;
+    const updated = { ...currentItinerary, name: name.trim() || null };
+    _setCurrentItinerary(updated);
+    setHasUnsavedChanges(true);
+    AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(updated)).catch(() => {});
   };
 
   const removeActivity = (day: number, activityId: string) => {
@@ -204,6 +212,7 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
         reorderActivity,
         updateActivityTime,
         addActivity,
+        renameItinerary,
         tripInput,
         setTripInput,
       }}

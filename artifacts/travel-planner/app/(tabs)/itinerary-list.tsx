@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   StyleSheet,
   Platform,
   ScrollView,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -13,6 +15,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 
 import { useColors } from "@/hooks/useColors";
+import { useAuth } from "@/context/AuthContext";
 import { useItinerary } from "@/context/ItineraryContext";
 
 const PACE_COLORS: Record<string, string> = {
@@ -31,14 +34,60 @@ export default function ItineraryListScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { currentItinerary } = useItinerary();
+  const { token } = useAuth();
+  const { currentItinerary, renameItinerary } = useItinerary();
+
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [savingRename, setSavingRename] = useState(false);
+  const renameRef = useRef<TextInput>(null);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const apiBase = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+
+  const displayName = currentItinerary
+    ? (currentItinerary.name ?? currentItinerary.city)
+    : "";
+
+  const startRename = useCallback(() => {
+    if (!currentItinerary) return;
+    Haptics.selectionAsync();
+    setRenameValue(currentItinerary.name ?? currentItinerary.city);
+    setIsRenaming(true);
+    setTimeout(() => renameRef.current?.focus(), 80);
+  }, [currentItinerary]);
+
+  const cancelRename = useCallback(() => {
+    setIsRenaming(false);
+    setRenameValue("");
+  }, []);
+
+  const saveRename = useCallback(async () => {
+    const trimmed = renameValue.trim();
+    if (!trimmed) { cancelRename(); return; }
+    setSavingRename(true);
+    renameItinerary(trimmed);
+
+    if (currentItinerary?.id && token) {
+      try {
+        await fetch(`${apiBase}/api/itinerary/${currentItinerary.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ name: trimmed }),
+        });
+      } catch {}
+    }
+    setSavingRename(false);
+    setIsRenaming(false);
+    setRenameValue("");
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [renameValue, currentItinerary, token, renameItinerary, cancelRename]);
 
   const handleOpenCurrent = useCallback(() => {
+    if (isRenaming) return;
     Haptics.selectionAsync();
     router.push("/itinerary");
-  }, [router]);
+  }, [router, isRenaming]);
 
   const totalStops = (item: { days: { activities: { id: string }[] }[] }) =>
     item.days.reduce((s, d) => s + d.activities.length, 0);
@@ -47,7 +96,6 @@ export default function ItineraryListScreen() {
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
-      {/* HEADER */}
       <View style={[s.header, { borderBottomColor: colors.border }]}>
         <Text style={[s.title, { color: colors.foreground }]}>Itinerary.</Text>
       </View>
@@ -67,19 +115,61 @@ export default function ItineraryListScreen() {
             <TouchableOpacity
               style={[s.currentCard, { borderColor: colors.border, shadowColor: colors.border }]}
               onPress={handleOpenCurrent}
-              activeOpacity={0.85}
+              activeOpacity={isRenaming ? 1 : 0.85}
             >
-              <View style={s.currentCardTop}>
-                <View style={s.currentMeta}>
-                  <View style={s.liveDot} />
-                  <Text style={[s.liveLabel, { color: colors.teal }]}>ACTIVE</Text>
-                </View>
-                <View style={[s.currentStamp, { backgroundColor: colors.teal, borderColor: colors.border }]}>
-                  <Text style={s.stampText}>{currentItinerary.city.slice(0, 3).toUpperCase()}</Text>
-                </View>
+              {/* ACTIVE badge */}
+              <View style={s.currentMeta}>
+                <View style={s.liveDot} />
+                <Text style={[s.liveLabel, { color: colors.teal }]}>ACTIVE</Text>
               </View>
 
-              <Text style={[s.currentCity, { color: colors.foreground }]}>{currentItinerary.city}.</Text>
+              {/* City / name + rename */}
+              {isRenaming ? (
+                <View style={s.renameRow}>
+                  <TextInput
+                    ref={renameRef}
+                    style={[s.renameInput, { borderColor: colors.primary, color: colors.foreground }]}
+                    value={renameValue}
+                    onChangeText={setRenameValue}
+                    onSubmitEditing={saveRename}
+                    returnKeyType="done"
+                    selectTextOnFocus
+                    maxLength={60}
+                    placeholderTextColor={colors.mutedForeground}
+                    placeholder="Trip name…"
+                  />
+                  <TouchableOpacity
+                    style={[s.renameBtn, { backgroundColor: colors.primary, borderColor: colors.border }]}
+                    onPress={saveRename}
+                    disabled={savingRename}
+                  >
+                    {savingRename
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Feather name="check" size={14} color="#fff" />}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.renameBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    onPress={cancelRename}
+                    disabled={savingRename}
+                  >
+                    <Feather name="x" size={14} color={colors.foreground} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={s.nameRow}>
+                  <Text style={[s.currentCity, { color: colors.foreground }]} numberOfLines={1}>
+                    {displayName}.
+                  </Text>
+                  <TouchableOpacity style={s.editIconBtn} onPress={startRename}>
+                    <Feather name="edit-2" size={14} color={colors.teal} />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Sub-label if renamed */}
+              {currentItinerary.name && currentItinerary.name !== currentItinerary.city && !isRenaming && (
+                <Text style={[s.subCity, { color: colors.mutedForeground }]}>{currentItinerary.city}</Text>
+              )}
 
               <View style={s.currentPills}>
                 <View style={[s.pill, { borderColor: colors.border, backgroundColor: colors.accent }]}>
@@ -87,21 +177,8 @@ export default function ItineraryListScreen() {
                     {currentItinerary.tripDays} {currentItinerary.tripDays === 1 ? "DAY" : "DAYS"}
                   </Text>
                 </View>
-                <View
-                  style={[
-                    s.pill,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: PACE_COLORS[currentItinerary.pace] ?? "#FEF3C7",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      s.pillText,
-                      { color: PACE_TEXT_COLORS[currentItinerary.pace] ?? "#92400E" },
-                    ]}
-                  >
+                <View style={[s.pill, { borderColor: colors.border, backgroundColor: PACE_COLORS[currentItinerary.pace] ?? "#FEF3C7" }]}>
+                  <Text style={[s.pillText, { color: PACE_TEXT_COLORS[currentItinerary.pace] ?? "#92400E" }]}>
                     {currentItinerary.pace.toUpperCase()}
                   </Text>
                 </View>
@@ -116,9 +193,11 @@ export default function ItineraryListScreen() {
                 <Text style={[s.footerMono, { color: colors.mutedForeground }]} numberOfLines={1}>
                   {currentItinerary.interests?.map((i) => i.toUpperCase()).join(" · ")}
                 </Text>
-                <View style={[s.openBadge, { backgroundColor: colors.foreground }]}>
-                  <Text style={[s.openBadgeText, { color: colors.accent }]}>OPEN →</Text>
-                </View>
+                {!isRenaming && (
+                  <View style={[s.openBadge, { backgroundColor: colors.foreground }]}>
+                    <Text style={[s.openBadgeText, { color: colors.accent }]}>OPEN →</Text>
+                  </View>
+                )}
               </View>
             </TouchableOpacity>
           ) : (
@@ -128,14 +207,7 @@ export default function ItineraryListScreen() {
                 No active itinerary — go to Plan to generate one.
               </Text>
               <TouchableOpacity
-                style={[
-                  s.planBtn,
-                  {
-                    backgroundColor: colors.primary,
-                    borderColor: colors.border,
-                    shadowColor: colors.border,
-                  },
-                ]}
+                style={[s.planBtn, { backgroundColor: colors.primary, borderColor: colors.border, shadowColor: colors.border }]}
                 onPress={() => router.push("/(tabs)/")}
               >
                 <Text style={s.planBtnText}>GO TO PLAN</Text>
@@ -174,13 +246,8 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number) {
     section: { marginBottom: 24 },
     sectionLabelRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
     sectionDot: { width: 8, height: 8, borderRadius: 4 },
-    sectionLabel: {
-      fontFamily: "SpaceMono_700Bold",
-      fontSize: 9,
-      letterSpacing: 2,
-    },
+    sectionLabel: { fontFamily: "SpaceMono_700Bold", fontSize: 9, letterSpacing: 2 },
 
-    // Current card
     currentCard: {
       borderWidth: 2,
       borderRadius: 4,
@@ -191,26 +258,35 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number) {
       shadowRadius: 0,
       elevation: 4,
     },
-    currentCardTop: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      marginBottom: 8,
-    },
-    currentMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
+    currentMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
     liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#14B8A6" },
     liveLabel: { fontFamily: "SpaceMono_700Bold", fontSize: 9, letterSpacing: 1.5 },
-    currentStamp: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+
+    nameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+    currentCity: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 30, flex: 1 },
+    editIconBtn: { padding: 4 },
+    subCity: { fontFamily: "SpaceMono_400Regular", fontSize: 10, marginBottom: 8, letterSpacing: 0.5 },
+
+    renameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
+    renameInput: {
+      flex: 1,
+      fontFamily: "SpaceMono_400Regular",
+      fontSize: 14,
       borderWidth: 2,
+      borderRadius: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      backgroundColor: "#fff",
+    },
+    renameBtn: {
+      width: 34,
+      height: 34,
+      borderWidth: 2,
+      borderRadius: 4,
       alignItems: "center",
       justifyContent: "center",
-      transform: [{ rotate: "12deg" }],
     },
-    stampText: { fontFamily: "SpaceMono_700Bold", fontSize: 10, color: "#fff" },
-    currentCity: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 30, marginBottom: 10 },
+
     currentPills: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 },
     currentFooter: {
       flexDirection: "row",
@@ -223,11 +299,9 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number) {
     openBadgeText: { fontFamily: "SpaceMono_700Bold", fontSize: 9, letterSpacing: 1 },
     footerMono: { fontFamily: "SpaceMono_400Regular", fontSize: 9, flex: 1, marginRight: 8 },
 
-    // Badges
     pill: { borderWidth: 2, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
     pillText: { fontFamily: "SpaceMono_700Bold", fontSize: 9 },
 
-    // Empty
     emptyCard: {
       borderWidth: 2,
       borderRadius: 4,
@@ -253,14 +327,8 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number) {
       elevation: 3,
       marginTop: 4,
     },
-    planBtnText: {
-      fontFamily: "SpaceMono_700Bold",
-      fontSize: 11,
-      color: "#fff",
-      letterSpacing: 1.5,
-    },
+    planBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 11, color: "#fff", letterSpacing: 1.5 },
 
-    // Tips
     tipsCard: {
       flexDirection: "row",
       gap: 10,
@@ -269,11 +337,6 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number) {
       padding: 14,
       alignItems: "flex-start",
     },
-    tipsText: {
-      flex: 1,
-      fontFamily: "SpaceMono_400Regular",
-      fontSize: 10,
-      lineHeight: 16,
-    },
+    tipsText: { flex: 1, fontFamily: "SpaceMono_400Regular", fontSize: 10, lineHeight: 16 },
   });
 }

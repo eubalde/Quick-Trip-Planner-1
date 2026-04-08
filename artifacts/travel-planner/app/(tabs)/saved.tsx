@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   Modal,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -41,6 +42,10 @@ export default function SavedScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [savingRename, setSavingRename] = useState(false);
+  const renameRef = useRef<TextInput>(null);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const apiBase = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
@@ -62,6 +67,7 @@ export default function SavedScreen() {
   useFocusEffect(useCallback(() => { fetchItineraries(); }, [fetchItineraries]));
 
   const handleOpen = (item: SavedItinerary) => {
+    if (renamingId) return;
     Haptics.selectionAsync();
     setCurrentItinerary({ ...item, generatedAt: item.createdAt } as Itinerary);
     router.push("/itinerary");
@@ -82,6 +88,40 @@ export default function SavedScreen() {
     } catch {
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const startRename = (item: SavedItinerary) => {
+    Haptics.selectionAsync();
+    setRenamingId(item.id);
+    setRenameValue(item.name ?? item.city);
+    setTimeout(() => renameRef.current?.focus(), 80);
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue("");
+  };
+
+  const saveRename = async (id: string) => {
+    const trimmed = renameValue.trim();
+    if (!trimmed) { cancelRename(); return; }
+    setSavingRename(true);
+    try {
+      const res = await fetch(`${apiBase}/api/itinerary/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) {
+        setItineraries((prev) => prev.map((i) => i.id === id ? { ...i, name: trimmed } : i));
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch {
+    } finally {
+      setSavingRename(false);
+      setRenamingId(null);
+      setRenameValue("");
     }
   };
 
@@ -109,7 +149,7 @@ export default function SavedScreen() {
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
-      {/* Custom delete confirmation modal — replaces Alert.alert() which is blocked in iframes */}
+      {/* Delete confirmation modal */}
       <Modal
         visible={!!deleteTarget}
         transparent
@@ -163,22 +203,58 @@ export default function SavedScreen() {
         }
         renderItem={({ item }) => {
           const displayName = item.name ?? item.city;
+          const isThisRenaming = renamingId === item.id;
+
           return (
             <TouchableOpacity
               style={[s.card, { borderColor: colors.border, shadowColor: colors.border }]}
-              onPress={() => handleOpen(item)}
-              activeOpacity={0.85}
+              onPress={() => !isThisRenaming && handleOpen(item)}
+              activeOpacity={isThisRenaming ? 1 : 0.85}
             >
-              {/* Stamp */}
-              <View style={[s.cardStamp, { backgroundColor: colors.primary, borderColor: colors.border }]}>
-                <Text style={s.stampText}>{item.city.slice(0, 3).toUpperCase()}</Text>
-                <Text style={s.stampYear}>{new Date(item.createdAt).getFullYear()}</Text>
-              </View>
+              {/* Name row or rename input */}
+              {isThisRenaming ? (
+                <View style={s.renameRow}>
+                  <TextInput
+                    ref={renameRef}
+                    style={[s.renameInput, { borderColor: colors.primary, color: colors.foreground }]}
+                    value={renameValue}
+                    onChangeText={setRenameValue}
+                    onSubmitEditing={() => saveRename(item.id)}
+                    returnKeyType="done"
+                    selectTextOnFocus
+                    maxLength={60}
+                    placeholderTextColor={colors.mutedForeground}
+                    placeholder="Trip name…"
+                  />
+                  <TouchableOpacity
+                    style={[s.renameBtn, { backgroundColor: colors.primary, borderColor: colors.border }]}
+                    onPress={() => saveRename(item.id)}
+                    disabled={savingRename}
+                  >
+                    {savingRename
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Feather name="check" size={14} color="#fff" />}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.renameBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    onPress={cancelRename}
+                    disabled={savingRename}
+                  >
+                    <Feather name="x" size={14} color={colors.foreground} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={s.nameRow}>
+                  <Text style={[s.cardCity, { color: colors.foreground }]} numberOfLines={1}>
+                    {displayName}.
+                  </Text>
+                  <TouchableOpacity style={s.editIconBtn} onPress={() => startRename(item)}>
+                    <Feather name="edit-2" size={14} color={colors.teal} />
+                  </TouchableOpacity>
+                </View>
+              )}
 
-              <Text style={[s.cardCity, { color: colors.foreground }]} numberOfLines={1}>
-                {displayName}.
-              </Text>
-              {item.name && item.name !== item.city && (
+              {item.name && item.name !== item.city && !isThisRenaming && (
                 <Text style={[s.cardSubCity, { color: colors.mutedForeground }]}>{item.city}</Text>
               )}
 
@@ -204,14 +280,12 @@ export default function SavedScreen() {
                 </Text>
                 <TouchableOpacity
                   onPress={() => setDeleteTarget({ id: item.id, label: displayName })}
-                  disabled={deletingId === item.id}
+                  disabled={deletingId === item.id || isThisRenaming}
                   style={s.deleteBtn}
                 >
-                  {deletingId === item.id ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <Feather name="trash-2" size={14} color={colors.primary} />
-                  )}
+                  {deletingId === item.id
+                    ? <ActivityIndicator size="small" color={colors.primary} />
+                    : <Feather name="trash-2" size={14} color={colors.primary} />}
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -247,22 +321,32 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       shadowRadius: 0,
       elevation: 4,
     },
-    cardStamp: {
-      position: "absolute",
-      top: -8,
-      right: 14,
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+
+    nameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+    cardCity: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 28, flex: 1 },
+    editIconBtn: { padding: 4 },
+    cardSubCity: { fontFamily: "SpaceMono_400Regular", fontSize: 10, marginBottom: 6, letterSpacing: 0.5 },
+
+    renameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
+    renameInput: {
+      flex: 1,
+      fontFamily: "SpaceMono_400Regular",
+      fontSize: 14,
       borderWidth: 2,
+      borderRadius: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      backgroundColor: "#fff",
+    },
+    renameBtn: {
+      width: 34,
+      height: 34,
+      borderWidth: 2,
+      borderRadius: 4,
       alignItems: "center",
       justifyContent: "center",
-      transform: [{ rotate: "12deg" }],
     },
-    stampText: { fontFamily: "SpaceMono_700Bold", fontSize: 10, color: "#fff" },
-    stampYear: { fontFamily: "SpaceMono_400Regular", fontSize: 7, color: "rgba(255,255,255,0.8)" },
-    cardCity: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 28, marginBottom: 4, paddingRight: 52 },
-    cardSubCity: { fontFamily: "SpaceMono_400Regular", fontSize: 10, marginBottom: 6, letterSpacing: 0.5 },
+
     cardBadges: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 },
     pill: { borderWidth: 2, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
     pillText: { fontFamily: "SpaceMono_700Bold", fontSize: 9 },
@@ -283,7 +367,6 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     },
     authBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 12, color: "#fff", letterSpacing: 2 },
 
-    // Modal
     modalOverlay: {
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.45)",
