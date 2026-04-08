@@ -805,6 +805,12 @@ export default function ItineraryScreen() {
               </Text>
             </View>
           )}
+          <View style={[s.fallbackNote, { borderColor: colors.border, borderLeftColor: "#14B8A6" }]}>
+            <Feather name="info" size={14} color="#14B8A6" />
+            <Text style={[s.fallbackText, { color: colors.mutedForeground }]}>
+              AI-generated venues — confirm opening hours and current status before visiting.
+            </Text>
+          </View>
         </View>
 
         {/* DAYS */}
