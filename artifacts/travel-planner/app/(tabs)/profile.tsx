@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Platform,
-  Alert,
+  Modal,
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,21 +21,14 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const handleLogout = () => {
-    Alert.alert("End Session", "Sign out of Voyager?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          await logout();
-        },
-      },
-    ]);
+  const confirmLogout = async () => {
+    setShowLogoutModal(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await logout();
   };
 
   const s = makeStyles(colors);
@@ -72,7 +65,41 @@ export default function ProfileScreen() {
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: Platform.OS === "web" ? 100 : 100 }} showsVerticalScrollIndicator={false}>
+      {/* Logout confirmation modal — Alert.alert() is blocked inside iframes */}
+      <Modal
+        visible={showLogoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={[s.modalBox, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: colors.border }]}>
+            <Text style={[s.modalTitle, { color: colors.foreground }]}>End Session</Text>
+            <Text style={[s.modalBody, { color: colors.mutedForeground }]}>
+              Sign out of Voyager? Your saved trips will still be here when you return.
+            </Text>
+            <View style={s.modalActions}>
+              <TouchableOpacity
+                style={[s.modalBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <Text style={[s.modalBtnText, { color: colors.foreground }]}>CANCEL</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.modalBtn, { borderColor: colors.border, backgroundColor: colors.primary, shadowColor: colors.border }]}
+                onPress={confirmLogout}
+              >
+                <Text style={[s.modalBtnText, { color: "#fff" }]}>SIGN OUT</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: Platform.OS === "web" ? 100 : 100 }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={[s.header, { paddingTop: topPad + 16, borderBottomColor: colors.border }]}>
           <Text style={s.title}>Profile.</Text>
         </View>
@@ -102,7 +129,10 @@ export default function ProfileScreen() {
 
           <TouchableOpacity
             style={[s.logoutBtn, { borderColor: colors.primary, shadowColor: colors.border }]}
-            onPress={handleLogout}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setShowLogoutModal(true);
+            }}
           >
             <Feather name="log-out" size={14} color={colors.primary} style={{ marginRight: 8 }} />
             <Text style={[s.logoutText, { color: colors.primary }]}>END SESSION</Text>
@@ -134,7 +164,6 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       marginBottom: 16,
     },
     avatarText: { fontFamily: "DMSerifDisplay_400Regular", fontSize: 32, color: "#fff" },
-    sysLine: { fontFamily: "SpaceMono_400Regular", fontSize: 9, marginBottom: 8 },
     heroName: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 32, marginBottom: 4 },
     mono: { fontFamily: "SpaceMono_400Regular" },
     infoCard: {
@@ -148,7 +177,13 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       shadowRadius: 0,
       elevation: 4,
     },
-    infoRow: { paddingVertical: 12, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    infoRow: {
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
     infoLabel: { fontFamily: "SpaceMono_700Bold", fontSize: 9, letterSpacing: 1 },
     infoVal: { fontFamily: "Inter_500Medium", fontSize: 14 },
     logoutBtn: {
@@ -191,5 +226,40 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       elevation: 4,
     },
     secondaryBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 12, letterSpacing: 2 },
+
+    // Modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 24,
+    },
+    modalBox: {
+      width: "100%",
+      maxWidth: 360,
+      borderWidth: 2,
+      borderRadius: 4,
+      padding: 24,
+      shadowOffset: { width: 4, height: 4 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 8,
+    },
+    modalTitle: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 24, marginBottom: 8 },
+    modalBody: { fontFamily: "SpaceMono_400Regular", fontSize: 11, lineHeight: 18, marginBottom: 20 },
+    modalActions: { flexDirection: "row", gap: 10 },
+    modalBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderWidth: 2,
+      borderRadius: 4,
+      alignItems: "center",
+      shadowOffset: { width: 3, height: 3 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 3,
+    },
+    modalBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 11, letterSpacing: 1 },
   });
 }
