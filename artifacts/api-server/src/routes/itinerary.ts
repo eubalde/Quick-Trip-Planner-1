@@ -116,6 +116,7 @@ type ActivityCandidate = {
   address: string;
   lat: number;
   lng: number;
+  confidence?: "high" | "medium" | "low";
 };
 
 /** Generic/vague name patterns that signal fabricated entries */
@@ -190,30 +191,36 @@ async function generateDayActivities(
   const systemPrompt =
     `You are a verified travel data specialist. Your sole job is to output real, factually accurate venue data. ` +
     `ACCURACY IS MORE IMPORTANT THAN QUANTITY. ` +
-    `Generate up to ${count} tourist activities in ${city} — only include venues you are highly confident exist there based on your training data. ` +
-    `If you are uncertain whether a venue exists, its name is correct, or its address is accurate, OMIT IT ENTIRELY. ` +
-    `Return ONLY a valid JSON array. Each object must have exactly: ` +
+    `Generate up to ${count} tourist activities in ${city}. ` +
+    `Return ONLY a valid JSON array. Each object must have exactly these fields: ` +
     `"id" ("d${dayNum}_N"), "name" (exact real venue name as publicly known), ` +
     `"category" (MUST be one of: ${allowedCats.join(", ")}), ` +
     `"estimated_duration" (integer minutes, 30–180), ` +
-    `"description" (factual 1–2 sentences — no superlatives or marketing language), ` +
+    `"description" (factual 1–2 sentences — no superlatives), ` +
     `"address" (real street address or well-known neighbourhood in ${city}), ` +
-    `"lat" (accurate latitude), "lng" (accurate longitude). ` +
+    `"lat" (accurate latitude), "lng" (accurate longitude), ` +
+    `"confidence" ("high" | "medium" | "low" — your certainty this venue is real and currently operating). ` +
+    `Confidence guide: ` +
+    `"high" = nationally recognised institution, major government museum, iconic landmark, major chain — virtually certain to be open; ` +
+    `"medium" = well-established independent venue with strong public profile, likely still operating; ` +
+    `"low" = newer, boutique, or uncertain — you are not fully confident it is still open. ` +
     `Return ONLY the JSON array, no other text.`;
 
   const userPrompt =
     `Day ${dayNum}/${tripDays} in ${city}. Interests: ${interests.join(", ")}. Today's focus: ${focusInterest}.\n\n` +
-    `DATA INTEGRITY RULES — all are mandatory:\n` +
-    `1. REAL VENUES ONLY: every entry must be a venue you have verified knowledge of. If uncertain → omit.\n` +
-    `2. EXACT NAMES: use the official public name (e.g. "Tsukiji Outer Market", not "Tsukiji fish market"). No nicknames or invented names.\n` +
-    `3. ACCURATE ADDRESSES: use the correct street address or neighbourhood. Do not guess.\n` +
-    `4. ACCURATE COORDINATES: lat/lng must place the venue in ${city}. Do not use placeholder or city-centre coordinates.\n` +
-    `5. CATEGORY CONSTRAINT: category must be one of [${allowedCats.join(", ")}] — no exceptions.\n` +
-    `6. INTEREST RELEVANCE: all picks must relate to ${interests.join(", ")}.\n` +
-    `7. SUB-TYPE DIVERSITY (important — vary within each category):\n${diversityLines}\n` +
-    `8. GEOGRAPHIC SPREAD: picks should span different neighbourhoods of ${city}, not cluster in one area.\n` +
-    `9. NO FABRICATION: do not invent venue names, composite venues, or fictional addresses under any circumstances.\n` +
-    `Return ONLY the JSON array. It is acceptable to return fewer than ${count} entries if you cannot verify enough real venues.`;
+    `DATA INTEGRITY RULES — all mandatory:\n` +
+    `1. REAL VENUES ONLY: every entry must be a venue you have clear knowledge of in ${city}. If uncertain → omit.\n` +
+    `2. OPERATING STATUS: prefer venues that have been continuously operating for many years and are very unlikely to have closed.\n` +
+    `3. EXACT NAMES: use the official public name (e.g. "Tsukiji Outer Market"). No invented or composite names.\n` +
+    `4. ACCURATE ADDRESSES: use the correct street address or neighbourhood. Do not guess.\n` +
+    `5. ACCURATE COORDINATES: lat/lng must place the venue correctly inside ${city}. No city-centre placeholders.\n` +
+    `6. CONFIDENCE REQUIRED: every entry must include a "confidence" field ("high"/"medium"/"low").\n` +
+    `7. CATEGORY CONSTRAINT: category must be one of [${allowedCats.join(", ")}] — no exceptions.\n` +
+    `8. INTEREST RELEVANCE: all picks must relate to ${interests.join(", ")}.\n` +
+    `9. SUB-TYPE DIVERSITY:\n${diversityLines}\n` +
+    `10. GEOGRAPHIC SPREAD: span different neighbourhoods of ${city}.\n` +
+    `11. NO FABRICATION: do not invent venue names, composite venues, or fictional addresses.\n` +
+    `Returning fewer than ${count} entries is acceptable — quality over quantity.`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -230,7 +237,10 @@ async function generateDayActivities(
     const match = content.match(/\[[\s\S]*\]/);
     if (!match) return [];
     const raw = JSON.parse(match[0]) as ActivityCandidate[];
-    return filterHallucinations(raw, city);
+    const dehalluced = filterHallucinations(raw, city);
+    // Drop low-confidence entries; fall back to full set only if nothing passes
+    const confident = dehalluced.filter((a) => a.confidence !== "low");
+    return confident.length >= 1 ? confident : dehalluced;
   } catch (err) {
     log.error({ err }, `Day ${dayNum} generation failed`);
     return [];
@@ -338,7 +348,10 @@ router.post("/itinerary/generate", async (req, res) => {
 
   const days = dayBuckets.map((bucket, i) => ({
     day: i + 1,
-    activities: nearestNeighborSequence(shuffleArray(bucket)),
+    // Strip the internal `confidence` field before sending to the client
+    activities: nearestNeighborSequence(shuffleArray(bucket)).map(
+      ({ confidence: _c, ...rest }) => rest
+    ),
   }));
 
   res.json({
