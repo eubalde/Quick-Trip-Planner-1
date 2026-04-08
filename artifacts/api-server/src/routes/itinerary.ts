@@ -429,7 +429,7 @@ router.post("/itinerary", async (req, res) => {
     return;
   }
 
-  const { city, tripDays, pace, interests, days, isOptimized } = req.body;
+  const { city, name, tripDays, pace, interests, days, isOptimized } = req.body;
 
   const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
@@ -439,6 +439,7 @@ router.post("/itinerary", async (req, res) => {
       id,
       userId,
       city,
+      name: name ?? null,
       tripDays,
       pace,
       interests,
