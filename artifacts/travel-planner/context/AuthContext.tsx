@@ -38,9 +38,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           AsyncStorage.getItem(USER_KEY),
         ]);
         if (savedToken && savedUser) {
-          setToken(savedToken);
-          setUser(JSON.parse(savedUser));
-          setAuthTokenGetter(() => savedToken);
+          // Validate the stored token is still accepted by the server.
+          // If the API restarted (previously wiping the in-memory store), this
+          // will return 401 and we clear the stale session instead of silently
+          // failing later when the user tries to save.
+          const check = await fetch(`${API_BASE}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${savedToken}` },
+          });
+          if (check.ok) {
+            setToken(savedToken);
+            setUser(JSON.parse(savedUser));
+            setAuthTokenGetter(() => savedToken);
+          } else {
+            await Promise.all([
+              AsyncStorage.removeItem(TOKEN_KEY),
+              AsyncStorage.removeItem(USER_KEY),
+            ]);
+          }
         }
       } catch {
       } finally {

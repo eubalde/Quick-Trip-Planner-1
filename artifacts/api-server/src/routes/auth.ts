@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { usersTable, sessionsTable } from "@workspace/db/schema";
+import { eq, lt } from "drizzle-orm";
 import { createHash, randomBytes } from "crypto";
 
 const router = Router();
@@ -26,20 +26,24 @@ function generateToken(): string {
   return randomBytes(32).toString("hex");
 }
 
-const tokenStore = new Map<string, { userId: string; expiresAt: number }>();
-
-function createSession(userId: string): string {
+async function createSession(userId: string): Promise<string> {
   const token = generateToken();
-  const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
-  tokenStore.set(token, { userId, expiresAt });
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 h
+  // Opportunistically purge expired sessions to keep the table lean
+  await db.delete(sessionsTable).where(lt(sessionsTable.expiresAt, new Date()));
+  await db.insert(sessionsTable).values({ token, userId, expiresAt });
   return token;
 }
 
-export function validateToken(token: string): string | null {
-  const session = tokenStore.get(token);
+export async function validateToken(token: string): Promise<string | null> {
+  const [session] = await db
+    .select()
+    .from(sessionsTable)
+    .where(eq(sessionsTable.token, token))
+    .limit(1);
   if (!session) return null;
-  if (Date.now() > session.expiresAt) {
-    tokenStore.delete(token);
+  if (Date.now() > session.expiresAt.getTime()) {
+    await db.delete(sessionsTable).where(eq(sessionsTable.token, token));
     return null;
   }
   return session.userId;
@@ -91,7 +95,7 @@ router.post("/auth/register", async (req, res) => {
     return;
   }
 
-  const token = createSession(user.id);
+  const token = await createSession(user.id);
 
   res.json({
     user: {
@@ -126,7 +130,7 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
 
-  const token = createSession(user.id);
+  const token = await createSession(user.id);
 
   res.json({
     user: {
@@ -139,11 +143,11 @@ router.post("/auth/login", async (req, res) => {
   });
 });
 
-router.post("/auth/logout", (req, res) => {
+router.post("/auth/logout", async (req, res) => {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
-    tokenStore.delete(token);
+    await db.delete(sessionsTable).where(eq(sessionsTable.token, token));
   }
   res.json({ message: "Logged out successfully" });
 });
@@ -156,7 +160,7 @@ router.get("/auth/me", async (req, res) => {
   }
 
   const token = authHeader.slice(7);
-  const userId = validateToken(token);
+  const userId = await validateToken(token);
   if (!userId) {
     res.status(401).json({ error: "Invalid or expired session" });
     return;

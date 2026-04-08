@@ -632,7 +632,7 @@ export default function ItineraryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { currentItinerary, removeActivity, reorderActivity, updateActivityTime, addActivity, tripInput, setCurrentItinerary } = useItinerary();
-  const { user, token } = useAuth();
+  const { user, token, logout } = useAuth();
 
   const [isSaving, setIsSaving] = useState(false);
   const [isRegen, setIsRegen] = useState(false);
@@ -692,6 +692,19 @@ export default function ItineraryScreen() {
           isOptimized: currentItinerary.isOptimized,
         }),
       });
+      if (res.status === 401) {
+        // Session has expired — log out locally and prompt re-authentication
+        await logout();
+        Alert.alert(
+          "Session Expired",
+          "Your session has expired. Please sign in again to save your itinerary.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Sign In", onPress: () => router.push("/auth") },
+          ]
+        );
+        return;
+      }
       if (!res.ok) throw new Error();
       const saved = await res.json();
       setCurrentItinerary({ ...currentItinerary, id: saved.id });
