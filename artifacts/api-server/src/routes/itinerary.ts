@@ -125,6 +125,10 @@ const HALLUCINATION_NAME_PATTERNS = [
   /^(hidden gem|must.?see|top attraction)/i,
   /\b(unnamed|unknown|various|multiple)\b/i,
   /^(restaurant|bar|cafe|shop|market|museum|park|gallery)$/i,
+  /\b(nearby|area|district|neighbourhood|zone)\b/i,
+  /^(best|great|nice|wonderful|amazing|iconic)\s/i,
+  /\bstreet food\b/i,
+  /^the \w+ (area|zone|district|strip)$/i,
 ];
 
 /** Remove activities that are likely hallucinated or too vague to be real */
@@ -158,7 +162,7 @@ function filterHallucinations(
 
   const medLat = median(lats);
   const medLng = median(lngs);
-  const MAX_DELTA = 0.8; // ~90km — generous enough for any real city
+  const MAX_DELTA = 0.5; // ~55km — filters wrong-city coordinates while covering large metro areas
 
   const coordFiltered = nameFiltered.filter((a) => {
     if (typeof a.lat !== "number" || typeof a.lng !== "number") return false;
@@ -189,47 +193,60 @@ async function generateDayActivities(
     .join("\n");
 
   const systemPrompt =
-    `You are a verified travel data specialist. Your sole job is to output real, factually accurate, maximally diverse venue data. ` +
-    `ACCURACY AND VARIETY are equally important. ` +
-    `Generate up to ${count} tourist activities in ${city}. ` +
+    `You are a real-time location verification specialist. ` +
+    `Your ONLY job is to output venues that you can confirm, with high certainty, are: ` +
+    `(1) a real, named, publicly accessible place that physically exists in ${city}; ` +
+    `(2) currently open and operating — NOT closed, relocated, or demolished; ` +
+    `(3) mappable to an exact, verifiable street address in ${city}. ` +
+    `If you cannot satisfy all three criteria for a venue, DO NOT include it. Omission is always preferred over approximation. ` +
     `Return ONLY a valid JSON array. Each object must have exactly these fields: ` +
-    `"id" ("d${dayNum}_N"), "name" (exact real venue name as publicly known), ` +
+    `"id" ("d${dayNum}_N"), ` +
+    `"name" (the official publicly known name — no invented, generic, or composite names), ` +
     `"category" (MUST be one of: ${allowedCats.join(", ")}), ` +
     `"estimated_duration" (integer minutes, 30–180), ` +
-    `"description" (factual 1–2 sentences — no superlatives), ` +
-    `"address" (real street address or well-known neighbourhood in ${city}), ` +
-    `"lat" (accurate latitude), "lng" (accurate longitude), ` +
-    `"confidence" ("high" | "medium" | "low" — your certainty this venue is real and currently operating). ` +
-    `Confidence guide: ` +
-    `"high" = nationally recognised institution, major government museum, iconic landmark — virtually certain to be open; ` +
-    `"medium" = well-established independent venue with strong public profile, likely still operating; ` +
-    `"low" = newer, boutique, or uncertain — not fully confident it is still open. ` +
-    `Return ONLY the JSON array, no other text.`;
+    `"description" (2 factual sentences about this specific venue — no superlatives, no marketing language), ` +
+    `"address" (exact street address; if no street address is available, use a precisely identified neighbourhood and landmark), ` +
+    `"lat" (precise latitude of the venue — must correctly place it within ${city}, never a city-centre placeholder), ` +
+    `"lng" (precise longitude, same constraint), ` +
+    `"confidence" — assign using this strict rubric: ` +
+    `"high" = you are virtually certain this venue is open today — e.g. major national museum, UNESCO-listed landmark, internationally recognised institution, long-running cultural institution with a permanent address; ` +
+    `"medium" = well-established venue with a verifiable address and public profile, operating for at least 5 years, no known closure; ` +
+    `"low" = you have any uncertainty about current operating status, address accuracy, or whether it still exists — EXCLUDE these entirely. ` +
+    `Return ONLY the JSON array, no markdown, no commentary.`;
 
   const usedCatsDisplay = allowedCats.join(", ");
   const userPrompt =
-    `Day ${dayNum}/${tripDays} in ${city}. Interests: ${interests.join(", ")}. Today's focus: ${focusInterest}.\n\n` +
-    `DATA INTEGRITY — mandatory:\n` +
-    `1. REAL VENUES ONLY: every entry must be a venue you have clear knowledge of in ${city}. Uncertain → omit.\n` +
-    `2. OPERATING STATUS: prefer venues continuously operating for many years, very unlikely to have closed.\n` +
-    `3. EXACT NAMES: use the official public name. No invented or composite names.\n` +
-    `4. ACCURATE ADDRESSES: real street address or neighbourhood. Do not guess.\n` +
-    `5. ACCURATE COORDINATES: lat/lng must correctly place the venue in ${city}. No city-centre placeholders.\n` +
-    `6. CONFIDENCE REQUIRED: every entry must include a "confidence" field.\n` +
-    `7. CATEGORY CONSTRAINT: category must be one of [${usedCatsDisplay}] — no exceptions.\n` +
-    `8. INTEREST RELEVANCE: all picks must relate to ${interests.join(", ")}.\n\n` +
-    `DIVERSITY — also mandatory:\n` +
-    `9. NO TWO ENTRIES may be the same type of experience. If you include a natural history museum, the next museum must be a completely different type (contemporary art, science, living-history, etc.).\n` +
-    `10. MIX SETTINGS: alternate indoor and outdoor venues. Mix daytime and evening-appropriate activities. Mix active (walking, exploring) and contemplative (sitting, observing).\n` +
-    `11. SUB-TYPE DIVERSITY within each category:\n${diversityLines}\n` +
-    `12. GEOGRAPHIC SPREAD: span at least ${Math.min(3, count)} distinct neighbourhoods of ${city}. No clustering.\n` +
-    `13. NO FABRICATION: do not invent venue names, composite venues, or fictional addresses.\n` +
-    `Fewer than ${count} entries is fine — quality and variety over quantity.`;
+    `Task: Verify and list real, currently-open venues for Day ${dayNum} of ${tripDays} in ${city}.\n` +
+    `Visitor interests: ${interests.join(", ")}. Day focus: ${focusInterest}.\n` +
+    `Target count: up to ${count} venues. FEWER is better than including uncertain entries.\n\n` +
+    `═══ VERIFICATION RULES — every rule is a hard filter, not a guideline ═══\n\n` +
+    `RULE 1 — CONFIRMED OPEN: Only include venues you can confirm are currently operational. ` +
+    `Prioritise venues with a long uninterrupted operating history (10+ years). ` +
+    `If a venue is known to have closed, is seasonal, or you are unsure of its current status — exclude it immediately.\n\n` +
+    `RULE 2 — EXACT VERIFIED NAME: Use only the official, publicly recognised name of the venue. ` +
+    `No invented names, no composite descriptions used as names (e.g. "Historic Tea House"), no generic category placeholders.\n\n` +
+    `RULE 3 — PRECISE REAL ADDRESS: Provide the venue's actual street address. ` +
+    `If you only know an approximate neighbourhood without a specific address, exclude the venue. ` +
+    `Do not guess or approximate addresses.\n\n` +
+    `RULE 4 — ACCURATE COORDINATES: Latitude and longitude must pinpoint the specific venue building/entrance. ` +
+    `Do not use city-centre, district-centre, or approximate coordinates. ` +
+    `If your coordinate accuracy is uncertain, exclude the venue.\n\n` +
+    `RULE 5 — CATEGORY CONSTRAINT: category must be exactly one of [${usedCatsDisplay}]. No exceptions.\n\n` +
+    `RULE 6 — INTEREST ALIGNMENT: every venue must be relevant to: ${interests.join(", ")}.\n\n` +
+    `RULE 7 — NO LOW CONFIDENCE: Do not output any entry with confidence "low". Omit it instead.\n\n` +
+    `═══ DIVERSITY RULES — apply after verification ═══\n\n` +
+    `RULE 8 — NO DUPLICATE EXPERIENCE TYPES: no two entries may offer the same type of experience ` +
+    `(e.g. two general history museums, two rooftop bars). Each must be meaningfully distinct.\n\n` +
+    `RULE 9 — INDOOR/OUTDOOR MIX: alternate between indoor and outdoor settings across the day.\n\n` +
+    `RULE 10 — SUB-TYPE VARIETY per category:\n${diversityLines}\n\n` +
+    `RULE 11 — GEOGRAPHIC SPREAD: entries should span at least ${Math.min(3, count)} distinct, named neighbourhoods of ${city}. ` +
+    `No clustering of all venues in one area.\n\n` +
+    `When in doubt about any venue — omit it. Return fewer, better results.`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
-      temperature: 0.3,
+      temperature: 0.15,
       max_completion_tokens: 3000,
       messages: [
         { role: "system", content: systemPrompt },
@@ -242,9 +259,16 @@ async function generateDayActivities(
     if (!match) return [];
     const raw = JSON.parse(match[0]) as ActivityCandidate[];
     const dehalluced = filterHallucinations(raw, city);
-    // Drop low-confidence entries; fall back to full set only if nothing passes
-    const confident = dehalluced.filter((a) => a.confidence !== "low");
-    return confident.length >= 1 ? confident : dehalluced;
+
+    // Tiered confidence filter:
+    // Prefer "high" only; fall back to high+medium; last resort keep all non-low
+    const highOnly = dehalluced.filter((a) => a.confidence === "high");
+    const highMedium = dehalluced.filter((a) => a.confidence === "high" || a.confidence === "medium");
+    const nonLow = dehalluced.filter((a) => a.confidence !== "low");
+
+    if (highOnly.length >= Math.ceil(count / 2)) return highOnly;
+    if (highMedium.length >= 1) return highMedium;
+    return nonLow.length >= 1 ? nonLow : dehalluced;
   } catch (err) {
     log.error({ err }, `Day ${dayNum} generation failed`);
     return [];
