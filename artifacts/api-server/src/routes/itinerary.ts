@@ -118,6 +118,55 @@ type ActivityCandidate = {
   lng: number;
 };
 
+/** Generic/vague name patterns that signal fabricated entries */
+const HALLUCINATION_NAME_PATTERNS = [
+  /^(a |the )?(local|traditional|famous|popular|authentic|classic|historic)\s/i,
+  /^(hidden gem|must.?see|top attraction)/i,
+  /\b(unnamed|unknown|various|multiple)\b/i,
+  /^(restaurant|bar|cafe|shop|market|museum|park|gallery)$/i,
+];
+
+/** Remove activities that are likely hallucinated or too vague to be real */
+function filterHallucinations(
+  activities: ActivityCandidate[],
+  city: string
+): ActivityCandidate[] {
+  // Step 1: Drop generic/vague names
+  const nameFiltered = activities.filter((a) => {
+    const name = (a.name ?? "").trim();
+    if (name.length < 3) return false;
+    if (HALLUCINATION_NAME_PATTERNS.some((re) => re.test(name))) return false;
+    return true;
+  });
+
+  if (nameFiltered.length === 0) return activities; // nothing passed — keep originals as fallback
+
+  // Step 2: Coordinate outlier removal — activities should cluster in the same city.
+  // Compute median lat/lng; discard anything more than 0.8 degrees away.
+  const lats = nameFiltered.map((a) => a.lat).filter((v) => typeof v === "number" && !isNaN(v));
+  const lngs = nameFiltered.map((a) => a.lng).filter((v) => typeof v === "number" && !isNaN(v));
+
+  if (lats.length === 0) return nameFiltered;
+
+  const sorted = (arr: number[]) => [...arr].sort((a, b) => a - b);
+  const median = (arr: number[]) => {
+    const s = sorted(arr);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 === 0 ? (s[m - 1]! + s[m]!) / 2 : s[m]!;
+  };
+
+  const medLat = median(lats);
+  const medLng = median(lngs);
+  const MAX_DELTA = 0.8; // ~90km — generous enough for any real city
+
+  const coordFiltered = nameFiltered.filter((a) => {
+    if (typeof a.lat !== "number" || typeof a.lng !== "number") return false;
+    return Math.abs(a.lat - medLat) <= MAX_DELTA && Math.abs(a.lng - medLng) <= MAX_DELTA;
+  });
+
+  return coordFiltered.length >= 1 ? coordFiltered : nameFiltered;
+}
+
 async function generateDayActivities(
   city: string,
   dayNum: number,
@@ -133,39 +182,44 @@ async function generateDayActivities(
 
   const focusInterest = interests[(dayNum - 1) % interests.length] ?? interests[0]!;
 
-  // Build sub-type diversity guidance for every allowed category
   const diversityLines = allowedCats
     .filter((c) => CATEGORY_DIVERSITY_HINTS[c])
     .map((c) => `  • ${c}: ${CATEGORY_DIVERSITY_HINTS[c]}`)
     .join("\n");
 
   const systemPrompt =
-    `You are a travel expert generating real, specific, diverse tourist activities. ` +
-    `Generate exactly ${count} activities in ${city} for day ${dayNum} of a ${tripDays}-day trip. ` +
+    `You are a verified travel data specialist. Your sole job is to output real, factually accurate venue data. ` +
+    `ACCURACY IS MORE IMPORTANT THAN QUANTITY. ` +
+    `Generate up to ${count} tourist activities in ${city} — only include venues you are highly confident exist there based on your training data. ` +
+    `If you are uncertain whether a venue exists, its name is correct, or its address is accurate, OMIT IT ENTIRELY. ` +
     `Return ONLY a valid JSON array. Each object must have exactly: ` +
-    `"id" ("d${dayNum}_N"), "name" (real specific venue/place name), ` +
+    `"id" ("d${dayNum}_N"), "name" (exact real venue name as publicly known), ` +
     `"category" (MUST be one of: ${allowedCats.join(", ")}), ` +
-    `"estimated_duration" (integer minutes, 30–180), "description" (1–2 sentences), ` +
-    `"address" (street or neighbourhood in ${city}), "lat" (number), "lng" (number). ` +
+    `"estimated_duration" (integer minutes, 30–180), ` +
+    `"description" (factual 1–2 sentences — no superlatives or marketing language), ` +
+    `"address" (real street address or well-known neighbourhood in ${city}), ` +
+    `"lat" (accurate latitude), "lng" (accurate longitude). ` +
     `Return ONLY the JSON array, no other text.`;
 
   const userPrompt =
     `Day ${dayNum}/${tripDays} in ${city}. Interests: ${interests.join(", ")}. Today's focus: ${focusInterest}.\n\n` +
-    `MANDATORY RULES:\n` +
-    `1. Category must be one of: [${allowedCats.join(", ")}] — no exceptions.\n` +
-    `2. Every name must be a REAL, specific venue (e.g. "Tsukiji Outer Market", not "local market").\n` +
-    `3. Spread picks across DIFFERENT neighbourhoods/districts of ${city} — no clustering in one area.\n` +
-    `4. Generate genuinely DIVERSE sub-types within each category:\n` +
-    `${diversityLines}\n` +
-    `5. Do NOT repeat any place that would obviously appear in another day (be creative).\n` +
-    `6. Include both quick stops (30–45 min) and deep-dive experiences (90–180 min).\n` +
-    `7. All picks must be directly relevant to: ${interests.join(", ")}.\n` +
-    `Return ONLY the JSON array.`;
+    `DATA INTEGRITY RULES — all are mandatory:\n` +
+    `1. REAL VENUES ONLY: every entry must be a venue you have verified knowledge of. If uncertain → omit.\n` +
+    `2. EXACT NAMES: use the official public name (e.g. "Tsukiji Outer Market", not "Tsukiji fish market"). No nicknames or invented names.\n` +
+    `3. ACCURATE ADDRESSES: use the correct street address or neighbourhood. Do not guess.\n` +
+    `4. ACCURATE COORDINATES: lat/lng must place the venue in ${city}. Do not use placeholder or city-centre coordinates.\n` +
+    `5. CATEGORY CONSTRAINT: category must be one of [${allowedCats.join(", ")}] — no exceptions.\n` +
+    `6. INTEREST RELEVANCE: all picks must relate to ${interests.join(", ")}.\n` +
+    `7. SUB-TYPE DIVERSITY (important — vary within each category):\n${diversityLines}\n` +
+    `8. GEOGRAPHIC SPREAD: picks should span different neighbourhoods of ${city}, not cluster in one area.\n` +
+    `9. NO FABRICATION: do not invent venue names, composite venues, or fictional addresses under any circumstances.\n` +
+    `Return ONLY the JSON array. It is acceptable to return fewer than ${count} entries if you cannot verify enough real venues.`;
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_completion_tokens: 2500,
+      model: "gpt-4o",
+      temperature: 0.3,
+      max_completion_tokens: 3000,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -175,7 +229,8 @@ async function generateDayActivities(
     const content = completion.choices[0]?.message?.content ?? "[]";
     const match = content.match(/\[[\s\S]*\]/);
     if (!match) return [];
-    return JSON.parse(match[0]) as ActivityCandidate[];
+    const raw = JSON.parse(match[0]) as ActivityCandidate[];
+    return filterHallucinations(raw, city);
   } catch (err) {
     log.error({ err }, `Day ${dayNum} generation failed`);
     return [];
