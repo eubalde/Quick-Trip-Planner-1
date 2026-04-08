@@ -471,6 +471,30 @@ router.get("/itinerary/:id", async (req, res) => {
   res.json(itinerary);
 });
 
+router.patch("/itinerary/:id", async (req, res) => {
+  const userId = (req as { userId?: string }).userId;
+  if (!userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  const { id } = req.params;
+  const { name } = req.body as { name?: string };
+
+  const [updated] = await db
+    .update(itinerariesTable)
+    .set({ name: name ?? null, updatedAt: new Date() })
+    .where(and(eq(itinerariesTable.id, id!), eq(itinerariesTable.userId, userId)))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Itinerary not found" });
+    return;
+  }
+
+  res.json(updated);
+});
+
 router.delete("/itinerary/:id", async (req, res) => {
   const userId = (req as { userId?: string }).userId;
   if (!userId) {

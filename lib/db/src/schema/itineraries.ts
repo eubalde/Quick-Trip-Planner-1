@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 export const itinerariesTable = pgTable("itineraries", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull(),
+  name: text("name"),
   city: text("city").notNull(),
   tripDays: integer("trip_days").notNull(),
   pace: text("pace").notNull(),
