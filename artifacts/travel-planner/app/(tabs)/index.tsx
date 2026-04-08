@@ -36,11 +36,10 @@ const PACES: { value: TravelPace; label: string; sub: string }[] = [
 ];
 
 const PROGRESS_LABELS = [
-  "Mapping candidate clusters...",
-  "Scoring interest alignment...",
-  "Running nearest-neighbour...",
-  "Verifying efficiency ratio...",
-  "Finalising itinerary...",
+  "Generating activities...",
+  "Building your days...",
+  "Sequencing routes...",
+  "Almost there...",
 ];
 
 // ─── Nominatim types ───────────────────────────────────────────────────────────
@@ -349,7 +348,7 @@ export default function PlanScreen() {
     const labelTimer = setInterval(() => {
       step++;
       if (step < PROGRESS_LABELS.length) setProgressLabel(PROGRESS_LABELS[step]!);
-    }, 3500);
+    }, 1800);
 
     try {
       const apiBase = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;

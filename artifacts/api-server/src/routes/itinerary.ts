@@ -83,13 +83,78 @@ function nearestNeighborSequence<T extends { lat?: number; lng?: number }>(
   return result;
 }
 
+type ActivityCandidate = {
+  id: string;
+  name: string;
+  category: string;
+  estimated_duration: number;
+  description: string;
+  address: string;
+  lat: number;
+  lng: number;
+};
+
+async function generateDayActivities(
+  city: string,
+  dayNum: number,
+  tripDays: number,
+  interests: string[],
+  pace: string,
+  count: number,
+  log: { error: (obj: object, msg: string) => void }
+): Promise<ActivityCandidate[]> {
+  const interestHints = interests
+    .map((i) => `${i} (${(INTEREST_CATEGORY_MAP[i] ?? []).join(", ")})`)
+    .join("; ");
+
+  const focusInterest = interests[(dayNum - 1) % interests.length] ?? interests[0]!;
+  const focusCats = (INTEREST_CATEGORY_MAP[focusInterest] ?? []).join(", ");
+
+  const systemPrompt =
+    `You are a travel expert. Generate exactly ${count} tourist activities in ${city} for day ${dayNum} of a ${tripDays}-day trip. ` +
+    `Return ONLY a valid JSON array. Each object must have: ` +
+    `"id" (string, e.g. "d${dayNum}_1"), "name" (specific real place name), ` +
+    `"category" (one of: museum, landmark, park, restaurant, shopping, entertainment, cultural, outdoor, nightlife, tour), ` +
+    `"estimated_duration" (integer minutes, 30–180), "description" (1–2 sentences), ` +
+    `"address" (neighbourhood or street in ${city}), "lat" (number), "lng" (number). ` +
+    `No extra fields. Return ONLY the JSON array.`;
+
+  const userPrompt =
+    `Day ${dayNum}/${tripDays} in ${city}. Interests: ${interestHints}. Today's focus: ${focusInterest} (${focusCats}).\n` +
+    `Rules:\n` +
+    `1. Use real, specific place names — not generic descriptions.\n` +
+    `2. Spread picks across different neighbourhoods/areas of ${city}.\n` +
+    `3. Mix 2–3 interest-aligned spots with 1–2 hidden gems or local favourites.\n` +
+    `4. Vary duration: quick stops (30–45 min) and immersive experiences (90–180 min).\n` +
+    `5. Every pick must be distinct and genuinely worth visiting.\n` +
+    `Return ONLY the JSON array.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 2500,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+
+    const content = completion.choices[0]?.message?.content ?? "[]";
+    const match = content.match(/\[[\s\S]*\]/);
+    if (!match) return [];
+    return JSON.parse(match[0]) as ActivityCandidate[];
+  } catch (err) {
+    log.error({ err }, `Day ${dayNum} generation failed`);
+    return [];
+  }
+}
+
 router.post("/itinerary/generate", async (req, res) => {
-  const { city, tripDays, interests, pace, seed } = req.body as {
+  const { city, tripDays, interests, pace } = req.body as {
     city: string;
     tripDays: number;
     interests: string[];
     pace: string;
-    seed?: number;
   };
 
   if (!city || !tripDays || !interests || !pace) {
@@ -108,110 +173,50 @@ router.post("/itinerary/generate", async (req, res) => {
   }
 
   const activitiesPerDay = ACTIVITY_COUNTS[pace] ?? 3;
-  const totalNeeded = activitiesPerDay * tripDays;
-  const candidateCount = Math.max(20, totalNeeded * 3);
+  const bufferCount = activitiesPerDay + 5;
 
-  const systemPrompt = `You are a travel expert. Generate exactly ${candidateCount} distinct tourist activities for ${city}.
-Return ONLY a valid JSON array. Each activity must have these exact fields:
-- id: unique string like "act_1"
-- name: string (specific real place name)
-- category: one of: museum, landmark, park, restaurant, shopping, entertainment, cultural, outdoor, nightlife, tour
-- estimated_duration: integer (minutes, 30-180)
-- description: string (2-3 sentences about the place)
-- address: string (approximate address or neighborhood)
-- lat: number (approximate latitude)
-- lng: number (approximate longitude)
-
-IMPORTANT: Return ONLY the JSON array, no other text.`;
-
-  const userPrompt = `Generate ${candidateCount} tourist activities for ${city}. 
-Focus particularly on these interest areas: ${interests.join(", ")}.
-Make activities varied and representative of the city's best attractions.
-Include a mix of: ${Object.keys(CATEGORY_POPULARITY).join(", ")}.`;
-
-  let candidates: Array<{
-    id: string;
-    name: string;
-    category: string;
-    estimated_duration: number;
-    description: string;
-    address: string;
-    lat: number;
-    lng: number;
-  }> = [];
-
+  // All days generated in parallel — total time ≈ time of one call
+  let dayResults: ActivityCandidate[][];
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 8192,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    });
-
-    const content = completion.choices[0]?.message?.content ?? "[]";
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      candidates = JSON.parse(jsonMatch[0]);
-    }
+    dayResults = await Promise.all(
+      Array.from({ length: tripDays }, (_, i) =>
+        generateDayActivities(city, i + 1, tripDays, interests, pace, bufferCount, req.log)
+      )
+    );
   } catch (err) {
-    req.log.error({ err }, "AI generation failed");
+    req.log.error({ err }, "Parallel generation failed");
     res.status(500).json({ error: "Failed to generate itinerary" });
     return;
   }
 
-  if (!Array.isArray(candidates) || candidates.length === 0) {
-    res.status(500).json({ error: "Failed to parse AI response" });
-    return;
-  }
-
-  const usedCategories = new Set<string>();
-  const scored = candidates.map((a) => ({
-    ...a,
-    score: scoreActivity(a, interests, usedCategories),
-  }));
-
-  scored.sort((a, b) => b.score - a.score);
-
-  const seededRandom = seed
-    ? (() => {
-        let s = seed;
-        return () => {
-          s = (s * 1103515245 + 12345) & 0x7fffffff;
-          return s / 0x7fffffff;
-        };
-      })()
-    : Math.random;
-
-  const days: Array<{ day: number; activities: typeof scored }> = [];
-
+  const allUsedNames = new Set<string>();
+  const days: Array<{ day: number; activities: ActivityCandidate[] }> = [];
   let fallbackTier: number | null = null;
 
   for (let d = 0; d < tripDays; d++) {
-    const usedIds = new Set(days.flatMap((day) => day.activities.map((a) => a.id)));
-    let available = scored.filter((a) => !usedIds.has(a.id));
+    const raw = dayResults[d] ?? [];
 
-    if (available.length < activitiesPerDay) {
-      if (fallbackTier === null) fallbackTier = 1;
-      const extras = scored.filter((a) => !usedIds.has(a.id));
-      available = extras.length > 0 ? extras : scored.slice(0, activitiesPerDay);
+    if (raw.length === 0) {
+      fallbackTier = 1;
     }
 
-    const topPool = available.slice(0, Math.min(10, available.length));
+    // Remove cross-day name duplicates
+    const unique = raw.filter((a) => {
+      const key = (a.name ?? "").toLowerCase().trim();
+      return key.length > 0 && !allUsedNames.has(key);
+    });
 
-    let selected: typeof scored;
-    if (seed !== undefined) {
-      selected = [];
-      const pool = [...topPool];
-      const needed = Math.min(activitiesPerDay, pool.length);
-      for (let i = 0; i < needed; i++) {
-        const idx = Math.floor(seededRandom() * pool.length);
-        selected.push(pool.splice(idx, 1)[0]!);
-      }
-    } else {
-      selected = topPool.slice(0, activitiesPerDay);
-    }
+    const pool = unique.length >= activitiesPerDay ? unique : raw;
+
+    const usedCategories = new Set<string>();
+    const scored = pool.map((a) => ({
+      ...a,
+      score: scoreActivity(a, interests, usedCategories),
+    }));
+    scored.sort((a, b) => b.score - a.score);
+
+    const selected = scored.slice(0, activitiesPerDay);
+    selected.forEach((a) => allUsedNames.add((a.name ?? "").toLowerCase().trim()));
 
     const sequenced = nearestNeighborSequence(selected);
     days.push({ day: d + 1, activities: sequenced });
