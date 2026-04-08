@@ -685,6 +685,7 @@ export default function ItineraryScreen() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           city: currentItinerary.city,
+          name: currentItinerary.name ?? null,
           tripDays: currentItinerary.tripDays,
           pace: currentItinerary.pace,
           interests: currentItinerary.interests,
