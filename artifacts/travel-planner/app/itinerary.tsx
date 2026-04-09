@@ -631,13 +631,17 @@ export default function ItineraryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { currentItinerary, removeActivity, reorderActivity, updateActivityTime, addActivity, tripInput, setCurrentItinerary } = useItinerary();
+  const { currentItinerary, removeActivity, reorderActivity, updateActivityTime, addActivity, tripInput, setCurrentItinerary, renameItinerary } = useItinerary();
   const { user, token, logout } = useAuth();
 
   const [isSaving, setIsSaving] = useState(false);
   const [isRegen, setIsRegen] = useState(false);
   const [addEventVisible, setAddEventVisible] = useState(false);
   const [addEventTargetDay, setAddEventTargetDay] = useState(1);
+
+  // Inline rename state
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
 
   // Time picker state
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -794,6 +798,47 @@ export default function ItineraryScreen() {
         {/* HERO */}
         <View style={s.hero}>
           <Text style={[s.heroCity, { color: colors.foreground }]}>{currentItinerary.city}.</Text>
+
+          {/* Inline rename row */}
+          {isRenaming ? (
+            <View style={s.renameRow}>
+              <TextInput
+                style={[s.renameInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+                value={renameValue}
+                onChangeText={setRenameValue}
+                autoFocus
+                placeholder="Trip name…"
+                placeholderTextColor={colors.mutedForeground}
+                maxLength={48}
+                returnKeyType="done"
+                onSubmitEditing={() => { renameItinerary(renameValue); setIsRenaming(false); }}
+              />
+              <TouchableOpacity
+                style={[s.renameBtn, { backgroundColor: colors.foreground, borderColor: colors.border }]}
+                onPress={() => { renameItinerary(renameValue); setIsRenaming(false); }}
+              >
+                <Feather name="check" size={12} color={colors.accent} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.renameBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => setIsRenaming(false)}
+              >
+                <Feather name="x" size={12} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={s.renameReadRow}
+              onPress={() => { setRenameValue(currentItinerary.name ?? ""); setIsRenaming(true); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.renameReadText, { color: currentItinerary.name ? colors.foreground : colors.mutedForeground }]} numberOfLines={1}>
+                {currentItinerary.name || "UNTITLED TRIP"}
+              </Text>
+              <Feather name="edit-2" size={11} color={colors.mutedForeground} style={{ marginLeft: 6 }} />
+            </TouchableOpacity>
+          )}
+
           <View style={s.heroBadges}>
             <View style={[s.badge, { borderColor: colors.border, backgroundColor: colors.accent }]}>
               <Text style={[s.badgeMono, { color: colors.foreground }]}>
@@ -944,7 +989,12 @@ function makeItinStyles(colors: ReturnType<typeof useColors>) {
     saveBtnText: { fontFamily: "SpaceMono_700Bold", fontSize: 10, color: "#fff", letterSpacing: 1 },
     scroll: { paddingHorizontal: 20 },
     hero: { paddingVertical: 20 },
-    heroCity: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 44, marginBottom: 12 },
+    heroCity: { fontFamily: "DMSerifDisplay_400Italic", fontSize: 44, marginBottom: 6 },
+    renameReadRow: { flexDirection: "row", alignItems: "center", marginBottom: 12, alignSelf: "flex-start" },
+    renameReadText: { fontFamily: "SpaceMono_700Bold", fontSize: 10, letterSpacing: 1.5 },
+    renameRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
+    renameInput: { flex: 1, fontFamily: "SpaceMono_700Bold", fontSize: 10, letterSpacing: 1, borderWidth: 2, borderRadius: 4, paddingHorizontal: 10, paddingVertical: 6 },
+    renameBtn: { borderWidth: 2, borderRadius: 4, width: 28, height: 28, alignItems: "center", justifyContent: "center" },
     heroBadges: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
     badge: { borderWidth: 2, borderRadius: 4, paddingHorizontal: 10, paddingVertical: 5 },
     badgeMono: { fontFamily: "SpaceMono_700Bold", fontSize: 9 },
